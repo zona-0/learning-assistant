@@ -7,7 +7,11 @@ async function doLogin() {
   const alertBox = document.getElementById('alert-box');
 
   if (!username || !password) {
+<<<<<<< HEAD
     showAlert('error', 'fill all fields!');
+=======
+    showAlert('error', 'isi username passwordnya kimak.');
+>>>>>>> 03f10ac5ce75b8a5842a1d409a218d057832acf7
     return;
   }
 
@@ -25,15 +29,26 @@ async function doLogin() {
     const data = await response.json();
 
     if (data.success) {
+<<<<<<< HEAD
       showAlert('success', `Login success, ${data.fullName}!`);
+=======
+      showAlert('success', `Login success dek, ${data.fullName}!`);
+>>>>>>> 03f10ac5ce75b8a5842a1d409a218d057832acf7
       btn.textContent = 'Login Success';
     } else {
       showAlert('error', `${data.message}`);
       btn.disabled    = false;
+<<<<<<< HEAD
       btn.textContent = 'Masuk';
     }
   } catch (err) {
     showAlert('error', 'server not connected backend');
+=======
+      btn.textContent = 'Masuk →';
+    }
+  } catch (err) {
+    showAlert('error', 'server not connected backend.');
+>>>>>>> 03f10ac5ce75b8a5842a1d409a218d057832acf7
     btn.disabled    = false;
     btn.textContent = 'Masuk →';
   }
