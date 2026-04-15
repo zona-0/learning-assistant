@@ -1,2 +1,4 @@
 mvn clean package
 java -jar target\cleverai-1.0.jar
+
+s

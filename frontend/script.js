@@ -7,11 +7,7 @@ async function doLogin() {
   const alertBox = document.getElementById('alert-box');
 
   if (!username || !password) {
-<<<<<<< HEAD
     showAlert('error', 'fill all fields!');
-=======
-    showAlert('error', 'isi username passwordnya kimak.');
->>>>>>> 03f10ac5ce75b8a5842a1d409a218d057832acf7
     return;
   }
 

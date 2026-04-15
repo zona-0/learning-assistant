@@ -17,3 +17,4 @@ VALUES ('admin', 'admin@cleverai.com',
         'Administrator CleverAI');
 
 SELECT * FROM users;
+-- s
