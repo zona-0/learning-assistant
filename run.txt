@@ -1,0 +1,5 @@
+mvn clean package
+java -jar target\cleverai-1.0.jar
+
+dependencies:
+install java, maven, javac(adoptium)

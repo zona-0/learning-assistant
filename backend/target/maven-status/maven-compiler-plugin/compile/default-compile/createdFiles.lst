@@ -1,0 +1,7 @@
+com\cleverai\handler\RegisterHandler.class
+com\cleverai\util\Database.class
+com\cleverai\Server.class
+com\cleverai\dao\UserDAO.class
+com\cleverai\Main.class
+com\cleverai\model\User.class
+com\cleverai\handler\LoginHandler.class
