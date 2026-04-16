@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 com\cleverai\handler\RegisterHandler.class
 com\cleverai\util\Database.class
 com\cleverai\Server.class
@@ -5,3 +6,11 @@ com\cleverai\dao\UserDAO.class
 com\cleverai\Main.class
 com\cleverai\model\User.class
 com\cleverai\handler\LoginHandler.class
+=======
+com\cleverai\Main.class
+com\cleverai\model\User.class
+com\cleverai\util\Database.class
+com\cleverai\handler\LoginHandler.class
+com\cleverai\Server.class
+com\cleverai\dao\UserDAO.class
+>>>>>>> b26d310b139e7fda98bfde549aefb97fcf3312b4
