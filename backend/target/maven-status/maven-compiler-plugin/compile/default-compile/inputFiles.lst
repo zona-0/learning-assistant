@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 E:\project\learning-assistant\backend\src\com\cleverai\dao\UserDAO.java
 E:\project\learning-assistant\backend\src\com\cleverai\handler\LoginHandler.java
 E:\project\learning-assistant\backend\src\com\cleverai\model\User.java
@@ -6,11 +5,4 @@ E:\project\learning-assistant\backend\src\com\cleverai\Main.java
 E:\project\learning-assistant\backend\src\com\cleverai\util\Database.java
 E:\project\learning-assistant\backend\src\com\cleverai\handler\RegisterHandler.java
 E:\project\learning-assistant\backend\src\com\cleverai\Server.java
-=======
-E:\cleverAi\backend\src\com\cleverai\util\Database.java
-E:\cleverAi\backend\src\com\cleverai\model\User.java
-E:\cleverAi\backend\src\com\cleverai\dao\UserDAO.java
-E:\cleverAi\backend\src\com\cleverai\Server.java
-E:\cleverAi\backend\src\com\cleverai\handler\LoginHandler.java
-E:\cleverAi\backend\src\com\cleverai\Main.java
->>>>>>> b26d310b139e7fda98bfde549aefb97fcf3312b4
+E:\project\learning-assistant\backend\src\com\cleverai\handler\ProfileHandler.java
