@@ -4,7 +4,6 @@ import com.cleverai.handler.LoginHandler;
 import com.cleverai.handler.RegisterHandler;
 import com.cleverai.handler.ProfileHandler;
 import com.sun.net.httpserver.HttpServer;
-
 import java.net.InetSocketAddress;
 
 public class Server {
