@@ -1,4 +1,4 @@
-package model;
+package com.cleverai.model;
 
 public class TimerSetting {
     private int userId;
