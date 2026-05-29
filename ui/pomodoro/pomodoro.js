@@ -1,434 +1,479 @@
-
-
-const CIRCUMFERENCE = 2 * Math.PI * 118; 
+const CIRCUMFERENCE = 2 * Math.PI * 118;
 
 /* ── Settings config ── */
 const cfg = { focus: 25, short: 5, long: 15, sessions: 4 };
-const cfgMin = { focus: 5,  short: 1, long: 5,  sessions: 2 };
+const cfgMin = { focus: 5, short: 1, long: 5, sessions: 2 };
 const cfgMax = { focus: 90, short: 30, long: 60, sessions: 8 };
 
 /* ── Timer state ── */
-let mode              = 'focus';
-let isRunning         = false;
-let interval          = null;
-let timeLeft          = cfg.focus * 60;
-let totalTime         = cfg.focus * 60;
+let mode = "focus";
+let isRunning = false;
+let interval = null;
+let timeLeft = cfg.focus * 60;
+let totalTime = cfg.focus * 60;
 let completedSessions = 0;
-let focusMinutes      = 0;
-let breaksCount       = 0;
-let bestStreak        = 0;
-let currentStreak     = 0;
-let toastTimer        = null;
-const logEntries      = [];
+let focusMinutes = 0;
+let breaksCount = 0;
+let bestStreak = 0;
+let currentStreak = 0;
+let toastTimer = null;
 
-/* ── Mode display config ── */
-const modeConfig = {
-  focus: { color: '#06b6d4', label: 'FOCUS',      labelColor: '#67e8f9' },
-  short: { color: '#34d399', label: 'SHORT BREAK', labelColor: '#6ee7b7' },
-  long:  { color: '#a78bfa', label: 'LONG BREAK',  labelColor: '#c4b5fd' },
-};
+const API_BASE_URL = "http://localhost:8080/api/pomodoro";
 
-/* ════════════════════════════════════
-   INIT
-   ════════════════════════════════════ */
-window.addEventListener('load', () => {
-  /* User pill */
-  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
-  if (user) {
-    const fn  = user.fullName || user.username;
-    const ini = fn.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-    document.getElementById('ua').textContent      = ini;
-    document.getElementById('ua-name').textContent = fn;
-    document.getElementById('ua-role').textContent =
-      (user.role === 'admin' ? 'Administrator' : 'Pelajar').toUpperCase();
+/* ── Event Listener Saat Halaman Dimuat ── */
+document.addEventListener("DOMContentLoaded", () => {
+  initBackgroundCanvas();
+  loadSettingsAndHistoryFromDB();
+  updateDisplay();
+  renderSessionDots();
+
+  const btnSet = document.getElementById("btn-apply-settings");
+  if (btnSet) {
+    btnSet.addEventListener("click", applyAndSaveSettings);
   }
-
-  loadSettings();
-  buildDots();
-  updateRing(1);
-  renderDisplay();
-  initBg();
 });
 
-/* ════════════════════════════════════
-   SETTINGS
-   ════════════════════════════════════ */
-function loadSettings() {
-  const saved = JSON.parse(localStorage.getItem('pom_settings') || 'null');
-  if (saved) Object.assign(cfg, saved);
-  document.getElementById('set-focus').textContent    = cfg.focus;
-  document.getElementById('set-short').textContent    = cfg.short;
-  document.getElementById('set-long').textContent     = cfg.long;
-  document.getElementById('set-sessions').textContent = cfg.sessions;
+/* ── 1. FUNGSI AJAX FETCH SINKRONISASI BACKEND ── */
+async function loadSettingsAndHistoryFromDB() {
+  try {
+    const response = await fetch(API_BASE_URL);
+    if (!response.ok) throw new Error("Gagal mengambil data dari server");
 
-  /* Sync timer to loaded focus duration */
-  timeLeft  = cfg.focus * 60;
-  totalTime = timeLeft;
+    const data = await response.json();
+
+    cfg.focus = data.settings.focusDuration;
+    cfg.short = data.settings.shortBreak;
+    cfg.long = data.settings.longBreak;
+
+    document.getElementById("set-focus").innerText = cfg.focus;
+    document.getElementById("set-short").innerText = cfg.short;
+    document.getElementById("set-long").innerText = cfg.long;
+    document.getElementById("tog-autobreak").checked =
+      data.settings.autoStartBreaks;
+    document.getElementById("tog-sound").checked = data.settings.soundNotif;
+
+    renderHistoryLogList(data.historyLog);
+
+    if (!isRunning && mode === "focus") {
+      timeLeft = cfg.focus * 60;
+      totalTime = cfg.focus * 60;
+      updateDisplay();
+    }
+  } catch (error) {
+    console.error("Error sinkronisasi DB:", error);
+    showToast(
+      "Gagal memuat preferensi dari server. Menggunakan mode lokal.",
+      "focus-end",
+    );
+  }
 }
 
-function adjustSetting(key, delta) {
-  if (isRunning) return; /* don't adjust while running */
-  cfg[key] = Math.min(Math.max(cfg[key] + delta, cfgMin[key]), cfgMax[key]);
-  document.getElementById('set-' + key).textContent = cfg[key];
-  localStorage.setItem('pom_settings', JSON.stringify(cfg));
+async function saveSettingsToDB() {
+  const isAutoBreak = document.getElementById("tog-autobreak").checked;
+  const isSound = document.getElementById("tog-sound").checked;
 
-  /* Live-update timer display if the active mode's duration changed */
-  const durationKeys = { focus: 'focus', short: 'short', long: 'long' };
-  if (durationKeys[mode] === key) {
-    timeLeft  = cfg[key] * 60;
-    totalTime = timeLeft;
-    renderDisplay();
-    updateRing(1);
+  const formData = new URLSearchParams();
+  formData.append("focusDuration", cfg.focus);
+  formData.append("shortBreak", cfg.short);
+  formData.append("longBreak", cfg.long);
+  if (isAutoBreak) formData.append("autoStartBreaks", "on");
+  if (isSound) formData.append("soundNotif", "on");
+
+  try {
+    const response = await fetch(API_BASE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData.toString(),
+    });
+
+    if (response.ok) {
+      showToast("Pengaturan berhasil disimpan ke cloud!", "focus-end");
+    }
+  } catch (error) {
+    console.error("Gagal mengirim data setting:", error);
+  }
+}
+
+async function sendSessionLogToDB(modeSesi, durasi) {
+  const formData = new URLSearchParams();
+  formData.append("action", "save_history");
+  formData.append("modePomo", modeSesi);
+  formData.append("durasiMenit", durasi);
+
+  try {
+    const response = await fetch(API_BASE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData.toString(),
+    });
+
+    if (response.ok) {
+      loadSettingsAndHistoryFromDB();
+    }
+  } catch (error) {
+    console.error("Gagal mengirim log sesi:", error);
+  }
+}
+
+function renderHistoryLogList(listHistory) {
+  const logListContainer = document.getElementById("log-list");
+  if (!listHistory || listHistory.length === 0) {
+    logListContainer.innerHTML = `<p class="log-empty">Belum ada sesi hari ini — mari mulai!</p>`;
+    return;
   }
 
-  if (key === 'sessions') buildDots();
+  logListContainer.innerHTML = "";
+  listHistory.forEach((item) => {
+    let modeLabel =
+      item.modePomo === "focus"
+        ? "Focus Session"
+        : item.modePomo === "short_break"
+          ? "Short Break"
+          : "Long Break";
+    let dotClass =
+      item.modePomo === "focus"
+        ? "focus"
+        : item.modePomo === "short_break"
+          ? "short"
+          : "long";
+
+    const dateObj = new Date(item.waktuMulai);
+    const timeString = dateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const logItemHtml = `
+      <div class="log-item">
+        <div class="log-dot ${dotClass}"></div>
+        <div class="log-txt">${modeLabel} (${item.durasiMenit} m)</div>
+        <div class="log-time">${timeString}</div>
+      </div>
+    `;
+    logListContainer.innerHTML += logItemHtml;
+  });
 }
 
-/* ════════════════════════════════════
-   MODE SWITCHING
-   ════════════════════════════════════ */
-function setMode(m, btn) {
-  if (isRunning) pauseTimer();
-  mode = m;
+/* ── 2. LOGIKA UTAMA ENGINE POMODORO ── */
+function updateDisplay() {
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  const strMins = String(mins).padStart(2, "0");
+  const strSecs = String(secs).padStart(2, "0");
 
-  /* Update tab buttons */
-  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  document.getElementById("timer-display").innerText = `${strMins}:${strSecs}`;
 
-  /* Reset timer for this mode */
-  const durations = { focus: cfg.focus, short: cfg.short, long: cfg.long };
-  timeLeft  = durations[m] * 60;
-  totalTime = timeLeft;
+  const progressCircle = document.getElementById("ring-progress");
+  const glowCircle = document.getElementById("ring-glow");
+  const offset = CIRCUMFERENCE - (timeLeft / totalTime) * CIRCUMFERENCE;
 
-  /* Update labels & colours */
-  const mc = modeConfig[m];
-  document.getElementById('mode-label').textContent = mc.label;
-  document.getElementById('mode-label').style.color = mc.labelColor;
+  if (progressCircle && glowCircle) {
+    progressCircle.style.strokeDashoffset = offset;
+    glowCircle.style.strokeDashoffset = offset;
+  }
 
-  /* Update play button colour */
-  const mainBtn = document.getElementById('main-btn');
-  mainBtn.classList.remove('running', 'short-mode', 'long-mode');
-  if (m === 'short') mainBtn.classList.add('short-mode');
-  if (m === 'long')  mainBtn.classList.add('long-mode');
-
-  renderDisplay();
-  updateRing(1);
-  showPlayIcon();
-  buildDots();
+  document.title = `${strMins}:${strSecs} | CleverAI`;
 }
 
-/* ════════════════════════════════════
-   TIMER CORE
-   ════════════════════════════════════ */
 function toggleTimer() {
-  isRunning ? pauseTimer() : startTimer();
+  if (isRunning) pauseEngine();
+  else startEngine();
 }
 
-function startTimer() {
+function startEngine() {
   isRunning = true;
-  document.getElementById('main-btn').classList.add('running');
-  showPauseIcon();
+  const mainBtn = document.getElementById("main-btn");
+  if (mainBtn) mainBtn.classList.add("running");
+  document.getElementById("play-ico").style.display = "none";
+  document.getElementById("pause-ico").style.display = "block";
 
   interval = setInterval(() => {
     timeLeft--;
-    renderDisplay();
-    updateRing(timeLeft / totalTime);
+    updateDisplay();
 
     if (timeLeft <= 0) {
       clearInterval(interval);
-      isRunning = false;
-      onSessionEnd(false);
+      handleSessionCompleted();
     }
   }, 1000);
 }
 
-function pauseTimer() {
+function pauseEngine() {
   isRunning = false;
+  const mainBtn = document.getElementById("main-btn");
+  if (mainBtn) mainBtn.classList.remove("running");
+  document.getElementById("play-ico").style.display = "block";
+  document.getElementById("pause-ico").style.display = "none";
   clearInterval(interval);
-  document.getElementById('main-btn').classList.remove('running');
-  showPlayIcon();
 }
 
 function resetTimer() {
-  pauseTimer();
-  const durations = { focus: cfg.focus, short: cfg.short, long: cfg.long };
-  timeLeft  = durations[mode] * 60;
+  pauseEngine();
+  if (mode === "focus") timeLeft = cfg.focus * 60;
+  else if (mode === "short") timeLeft = cfg.short * 60;
+  else if (mode === "long") timeLeft = cfg.long * 60;
+
   totalTime = timeLeft;
-  renderDisplay();
-  updateRing(1);
+  updateDisplay();
+}
+
+function handleSessionCompleted() {
+  pauseEngine();
+  playNotificationSound();
+
+  let durasiSesiTerlewati = Math.floor(totalTime / 60);
+  let modeSesiSelesai = mode;
+
+  sendSessionLogToDB(modeSesiSelesai, durasiSesiTerlewati);
+
+  if (mode === "focus") {
+    completedSessions++;
+    focusMinutes += durasiSesiTerlewati;
+    currentStreak++;
+    if (currentStreak > bestStreak) bestStreak = currentStreak;
+
+    showToast(
+      "Kerja bagus! Sesi fokus selesai. Waktunya istirahat.",
+      "focus-end",
+    );
+
+    if (completedSessions % cfg.sessions === 0) setModeAutomatic("long");
+    else setModeAutomatic("short");
+  } else {
+    breaksCount++;
+    showToast("Waktu istirahat selesai! Siap fokus kembali?", "break-end");
+    setModeAutomatic("focus");
+  }
+
+  updateStatsDashboardElements();
+  renderSessionDots();
+
+  if (document.getElementById("tog-autobreak").checked) {
+    setTimeout(() => startEngine(), 1200);
+  }
+}
+
+function setMode(newMode, btnElement) {
+  pauseEngine();
+  mode = newMode;
+
+  document
+    .querySelectorAll(".mode-btn")
+    .forEach((b) => b.classList.remove("active"));
+  if (btnElement) btnElement.add("active");
+
+  const label = document.getElementById("mode-label");
+  const mainBtn = document.getElementById("main-btn");
+
+  if (mainBtn) mainBtn.className = "ctrl-btn ctrl-main";
+
+  if (mode === "focus") {
+    timeLeft = cfg.focus * 60;
+    if (label) {
+      label.innerText = "FOCUS";
+      label.style.color = "#67e8f9";
+    }
+  } else if (mode === "short") {
+    timeLeft = cfg.short * 60;
+    if (label) {
+      label.innerText = "SHORT BREAK";
+      label.style.color = "#6ee7b7";
+    }
+    if (mainBtn) mainBtn.classList.add("short-mode");
+  } else if (mode === "long") {
+    timeLeft = cfg.long * 60;
+    if (label) {
+      label.innerText = "LONG BREAK";
+      label.style.color = "#c4b5fd";
+    }
+    if (mainBtn) mainBtn.classList.add("long-mode");
+  }
+
+  totalTime = timeLeft;
+  updateDisplay();
+}
+
+function setModeAutomatic(newMode) {
+  const btnClass =
+    newMode === "focus"
+      ? ".mode-btn.focus"
+      : newMode === "short"
+        ? ".mode-btn.short"
+        : ".mode-btn.long";
+  const targetBtn = document.querySelector(btnClass);
+  setMode(newMode, targetBtn);
 }
 
 function skipSession() {
-  pauseTimer();
-  onSessionEnd(true);
+  pauseEngine();
+  if (mode === "focus") {
+    currentStreak = 0;
+    if (completedSessions % cfg.sessions === 0) setModeAutomatic("long");
+    else setModeAutomatic("short");
+  } else {
+    setModeAutomatic("focus");
+  }
+  updateStatsDashboardElements();
 }
 
-/* ════════════════════════════════════
-   SESSION END LOGIC  (Pomodoro method)
-   ════════════════════════════════════ */
-function onSessionEnd(skipped) {
-  playSound(mode);
-
-  if (mode === 'focus') {
-    /* ── Completed a focus block ── */
-    if (!skipped) {
-      completedSessions++;
-      focusMinutes  += cfg.focus;
-      currentStreak++;
-      if (currentStreak > bestStreak) bestStreak = currentStreak;
-    } else {
-      currentStreak = 0; /* streak broken on skip */
-    }
-
-    addLog('focus', skipped
-      ? 'Focus session skipped'
-      : `Focus — ${cfg.focus} min completed`);
-    updateStats();
-
-    /* After every N sessions → long break, otherwise → short break */
-    const nextBreak = (completedSessions % cfg.sessions === 0 && completedSessions > 0)
-      ? 'long' : 'short';
-
-    if (nextBreak === 'long') {
-      showToast('🎉 Great work! Time for a long break.', 'focus-end');
-    } else {
-      showToast('✓ Focus done! Take a short break.', 'focus-end');
-    }
-
-    if (document.getElementById('tog-autobreak').checked) {
-      setTimeout(() => {
-        setMode(nextBreak, document.querySelector(`.mode-btn.${nextBreak}`));
-        startTimer();
-      }, 1500);
-    } else {
-      setMode(nextBreak, document.querySelector(`.mode-btn.${nextBreak}`));
-    }
-
-  } else {
-    /* ── Completed a break ── */
-    if (!skipped) breaksCount++;
-
-    addLog(mode, mode === 'short'
-      ? 'Short break finished'
-      : 'Long break finished');
-    updateStats();
-    showToast('⚡ Break over! Ready to focus?', 'break-end');
-
-    /* Update session badge for next focus block */
-    const nextSession = (completedSessions % cfg.sessions) + 1;
-    document.getElementById('session-badge').textContent =
-      `Session ${nextSession} of ${cfg.sessions}`;
-
-    setMode('focus', document.querySelector('.mode-btn.focus'));
+/* ── 3. PREFERENSI UI KONTROL (HANYA MENGUBAH TEKS LOKAL) ── */
+function adjustSetting(type, amount) {
+  if (type === "focus") {
+    cfg.focus = Math.max(
+      cfgMin.focus,
+      Math.min(cfgMax.focus, cfg.focus + amount),
+    );
+    document.getElementById("set-focus").innerText = cfg.focus;
+  } else if (type === "short") {
+    cfg.short = Math.max(
+      cfgMin.short,
+      Math.min(cfgMax.short, cfg.short + amount),
+    );
+    document.getElementById("set-short").innerText = cfg.short;
+  } else if (type === "long") {
+    cfg.long = Math.max(cfgMin.long, Math.min(cfgMax.long, cfg.long + amount));
+    document.getElementById("set-long").innerText = cfg.long;
+  } else if (type === "sessions") {
+    cfg.sessions = Math.max(
+      cfgMin.sessions,
+      Math.min(cfgMax.sessions, cfg.sessions + amount),
+    );
+    document.getElementById("set-sessions").innerText = cfg.sessions;
   }
 }
 
-/* ════════════════════════════════════
-   SVG RING
-   ════════════════════════════════════ */
-function updateRing(fraction) {
-  const ring   = document.getElementById('ring-progress');
-  const glow   = document.getElementById('ring-glow');
-  const offset = CIRCUMFERENCE * (1 - Math.max(0, Math.min(1, fraction)));
-  const col    = modeConfig[mode].color;
+function applyAndSaveSettings() {
+  saveSettingsToDB();
 
-  ring.style.strokeDashoffset = offset;
-  glow.style.strokeDashoffset = offset;
-  ring.style.stroke = col;
-  glow.style.stroke = col;
+  if (!isRunning) {
+    if (mode === "focus") timeLeft = cfg.focus * 60;
+    else if (mode === "short") timeLeft = cfg.short * 60;
+    else if (mode === "long") timeLeft = cfg.long * 60;
+
+    totalTime = timeLeft;
+    updateDisplay();
+  }
+
+  renderSessionDots();
+  updateStatsDashboardElements();
+  showToast("Sesi aktif berhasil diperbarui!", "focus-end");
 }
 
-/* ════════════════════════════════════
-   DISPLAY
-   ════════════════════════════════════ */
-function renderDisplay() {
-  const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
-  const s = String(timeLeft % 60).padStart(2, '0');
-  document.getElementById('timer-display').textContent = `${m}:${s}`;
-  document.title = `${m}:${s} — CleverAI Pomodoro`;
+/* ── 4. UTILITY VIEW UI HELPER ── */
+function updateStatsDashboardElements() {
+  document.getElementById("stat-sessions").innerText = completedSessions;
+  document.getElementById("stat-focus").innerText = `${focusMinutes}m`;
+  document.getElementById("stat-breaks").innerText = breaksCount;
+  document.getElementById("stat-streak").innerText = bestStreak;
+
+  const currentSessionIndex = (completedSessions % cfg.sessions) + 1;
+  document.getElementById("session-badge").innerText =
+    `Session ${currentSessionIndex} of ${cfg.sessions}`;
 }
 
-/* ════════════════════════════════════
-   SESSION DOTS
-   ════════════════════════════════════ */
-function buildDots() {
-  const container = document.getElementById('session-dots');
-  container.innerHTML = '';
-  const inCycle = completedSessions % cfg.sessions;
+function renderSessionDots() {
+  const dotsContainer = document.getElementById("session-dots");
+  if (!dotsContainer) return;
+  dotsContainer.innerHTML = "";
+  const currentSessionIndex = completedSessions % cfg.sessions;
 
   for (let i = 0; i < cfg.sessions; i++) {
-    const dot = document.createElement('div');
-    dot.className = 's-dot';
-    if (i < inCycle)                            dot.classList.add('done');
-    else if (i === inCycle && mode === 'focus') dot.classList.add('current');
-    container.appendChild(dot);
+    const dot = document.createElement("div");
+    dot.className = "s-dot";
+    if (i < currentSessionIndex) dot.classList.add("done");
+    else if (i === currentSessionIndex && isRunning && mode === "focus")
+      dot.classList.add("current");
+    dotsContainer.appendChild(dot);
   }
 }
 
-/* ════════════════════════════════════
-   STATS
-   ════════════════════════════════════ */
-function updateStats() {
-  document.getElementById('stat-sessions').textContent = completedSessions;
-  document.getElementById('stat-focus').textContent    = focusMinutes + 'm';
-  document.getElementById('stat-breaks').textContent   = breaksCount;
-  document.getElementById('stat-streak').textContent   = bestStreak;
-}
-
-/* ════════════════════════════════════
-   SESSION LOG
-   ════════════════════════════════════ */
-function addLog(type, text) {
-  const now  = new Date();
-  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  logEntries.unshift({ type, text, time });
-  renderLog();
-}
-
-function renderLog() {
-  const list = document.getElementById('log-list');
-  if (logEntries.length === 0) {
-    list.innerHTML = '<p class="log-empty">No sessions yet — start your first!</p>';
-    return;
-  }
-  list.innerHTML = logEntries.slice(0, 10).map(e => `
-    <div class="log-item">
-      <div class="log-dot ${e.type}"></div>
-      <span class="log-txt">${e.text}</span>
-      <span class="log-time">${e.time}</span>
-    </div>
-  `).join('');
-}
-
-/* ════════════════════════════════════
-   SOUND  (Web Audio API — no files needed)
-   ════════════════════════════════════ */
-function playSound(type) {
-  if (!document.getElementById('tog-sound').checked) return;
+function playNotificationSound() {
+  if (!document.getElementById("tog-sound").checked) return;
   try {
-    const ctx   = new (window.AudioContext || window.webkitAudioContext)();
-    /* ascending = focus done, descending = break done */
-    const notes = type === 'focus'
-      ? [{ f: 523, d: 0.12 }, { f: 659, d: 0.12 }, { f: 784, d: 0.22 }]
-      : [{ f: 784, d: 0.12 }, { f: 659, d: 0.12 }, { f: 523, d: 0.22 }];
-    let t = ctx.currentTime;
-    notes.forEach(n => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = n.f;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.25, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + n.d + 0.08);
-      osc.start(t);
-      osc.stop(t + n.d + 0.1);
-      t += n.d;
-    });
-  } catch (e) { /* AudioContext blocked — silent fail */ }
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(587.33, context.currentTime);
+    oscillator.frequency.setValueAtTime(880, context.currentTime + 0.15);
+
+    gainNode.gain.setValueAtTime(0.2, context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.4);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.4);
+  } catch (e) {
+    console.log("Audio API blocked by safety policy.");
+  }
 }
 
-/* ════════════════════════════════════
-   TOAST NOTIFICATION
-   ════════════════════════════════════ */
-function showToast(msg, cls) {
-  const toast = document.getElementById('toast');
-  document.getElementById('toast-msg').textContent = msg;
-  toast.className = `toast ${cls} show`;
+function showToast(msg, typeClass) {
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
-}
+  const t = document.getElementById("toast");
+  if (!t) return;
+  document.getElementById("toast-msg").innerText = msg;
+  t.className = `toast show ${typeClass}`;
 
-/* ════════════════════════════════════
-   ICON HELPERS
-   ════════════════════════════════════ */
-function showPlayIcon() {
-  document.getElementById('play-ico').style.display  = '';
-  document.getElementById('pause-ico').style.display = 'none';
+  toastTimer = setTimeout(() => {
+    t.classList.remove("show");
+  }, 4000);
 }
-function showPauseIcon() {
-  document.getElementById('play-ico').style.display  = 'none';
-  document.getElementById('pause-ico').style.display = '';
-}
-
-/* ════════════════════════════════════
-   SIDEBAR
-   ════════════════════════════════════ */
-let sidebarCollapsed = false;
 
 function toggleSidebar() {
-  sidebarCollapsed = !sidebarCollapsed;
-  document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
+  document.getElementById("sidebar").classList.toggle("collapsed");
 }
 function openMob() {
-  document.getElementById('sidebar').classList.add('mob-open');
-  document.getElementById('mob-overlay').classList.add('show');
+  document.getElementById("sidebar").classList.add("mob-open");
+  document.getElementById("mob-overlay").classList.add("show");
 }
 function closeMob() {
-  document.getElementById('sidebar').classList.remove('mob-open');
-  document.getElementById('mob-overlay').classList.remove('show');
+  document.getElementById("sidebar").classList.remove("mob-open");
+  document.getElementById("mob-overlay").classList.remove("show");
 }
 
-/* ════════════════════════════════════
-   LOGOUT
-   ════════════════════════════════════ */
-function doLogout() {
-  sessionStorage.removeItem('cleverai_user');
-  window.location.href = '../login/index.html';
-}
+function initBackgroundCanvas() {
+  const canvas = document.getElementById("bgCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  let pts = [];
 
-/* ════════════════════════════════════
-   BACKGROUND CANVAS
-   ════════════════════════════════════ */
-function initBg() {
-  const cv = document.getElementById('bgCanvas');
-  if (!cv) return;
-  const ctx = cv.getContext('2d');
-
-  const resize = () => { cv.width = innerWidth; cv.height = innerHeight; };
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener("resize", resize);
   resize();
-  window.addEventListener('resize', resize);
 
-  const cols = ['6,182,212', '244,63,94', '245,158,11', '167,139,250'];
-  const pts  = Array.from({ length: 35 }, () => ({
-    x:  Math.random() * innerWidth,
-    y:  Math.random() * innerHeight,
-    vx: (Math.random() - 0.5) * 0.18,
-    vy: (Math.random() - 0.5) * 0.18,
-    r:  Math.random() * 1.1 + 0.3,
-    a:  Math.random() * 0.26 + 0.05,
-    c:  cols[Math.floor(Math.random() * cols.length)],
-  }));
+  for (let i = 0; i < 35; i++) {
+    pts.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.5 + 0.5,
+      vx: (Math.random() - 0.5) * 0.2,
+      vy: (Math.random() - 0.5) * 0.2,
+    });
+  }
 
-  (function draw() {
-    ctx.clearRect(0, 0, cv.width, cv.height);
-
-    pts.forEach(p => {
-      p.x += p.vx; p.y += p.vy;
-      if (p.x < 0) p.x = cv.width;  if (p.x > cv.width)  p.x = 0;
-      if (p.y < 0) p.y = cv.height; if (p.y > cv.height) p.y = 0;
+  function anim() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "rgba(6, 182, 212, 0.15)";
+    pts.forEach((p) => {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${p.c},${p.a})`;
       ctx.fill();
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+      if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
     });
+    requestAnimationFrame(anim);
+  }
+  anim();
+}
 
-    pts.forEach((p, i) => {
-      for (let j = i + 1; j < pts.length; j++) {
-        const q  = pts[j];
-        const dx = p.x - q.x, dy = p.y - q.y;
-        const d  = Math.sqrt(dx * dx + dy * dy);
-        if (d < 85) {
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(q.x, q.y);
-          ctx.strokeStyle = `rgba(6,182,212,${0.04 * (1 - d / 85)})`;
-          ctx.lineWidth   = 0.4;
-          ctx.stroke();
-        }
-      }
-    });
-
-    requestAnimationFrame(draw);
-  })();
+function doLogout() {
+  window.location.href = "../auth/login.html";
 }
