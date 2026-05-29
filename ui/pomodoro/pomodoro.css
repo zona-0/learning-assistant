@@ -714,6 +714,7 @@ canvas#bgCanvas {
   color: var(--t3);
 }
 
+/* Kontainer baris tombol aksi di bawah settings */
 .setting-row-action {
   display: flex;
   justify-content: flex-end;
@@ -723,6 +724,7 @@ canvas#bgCanvas {
   width: 100%;
 }
 
+/* Gaya utama tombol SET SETTINGS sesuai spesifikasi */
 .btn-set-pomo {
   background-color: #06b6d4;
   color: #ffffff;
@@ -739,10 +741,12 @@ canvas#bgCanvas {
     transform 0.1s ease;
 }
 
+/* Efek interaktif hover ketika kursor menyorot tombol */
 .btn-set-pomo:hover {
   background-color: #0891b2;
 }
 
+/* Efek ketika tombol ditekan/klik */
 .btn-set-pomo:active {
   transform: scale(0.98);
 }
