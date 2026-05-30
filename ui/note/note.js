@@ -6,11 +6,25 @@ let quill = null;
    INIT
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (!user) { window.location.href = '../login/index.html'; return; }
+
+  document.getElementById('udisplay').textContent = user.fullName || user.username;
+  document.getElementById('urole').textContent    = user.role === 'admin' ? 'Administrator' : 'Pelajar';
+  const ini = (user.fullName || user.username).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('ua').textContent = ini;
+
   initTheme();
   initEditor();
   loadNotes();
   renderNotes();
   setupSearch();
+  initBg();
+
+  document.querySelectorAll('.sb-item, .sb-logout').forEach(el => {
+    const lbl = el.querySelector('.sb-label');
+    if (lbl) el.setAttribute('data-tip', lbl.textContent.trim());
+  });
 });
 
 /* =========================
@@ -353,21 +367,57 @@ function toggleSidebar() {
 }
 
 function openMob() {
-  const sidebar = document.getElementById("sidebar");
-  const overlay = document.getElementById("mob-overlay");
-
-  if (sidebar) sidebar.style.display = "flex";
-  if (overlay) overlay.style.display = "block";
+  document.getElementById("sidebar").classList.add("mob-open");
+  document.getElementById("mob-overlay").classList.add("show");
 }
 
 function closeMob() {
-  const sidebar = document.getElementById("sidebar");
-  const overlay = document.getElementById("mob-overlay");
+  document.getElementById("sidebar").classList.remove("mob-open");
+  document.getElementById("mob-overlay").classList.remove("show");
+}
 
-  if (window.innerWidth <= 900) {
-    if (sidebar) sidebar.style.display = "none";
-    if (overlay) overlay.style.display = "none";
-  }
+/* =========================
+   LOGOUT
+========================= */
+function doLogout() {
+  sessionStorage.removeItem('cleverai_user');
+  window.location.href = '../login/index.html';
+}
+
+/* =========================
+   BG CANVAS
+========================= */
+function initBg() {
+  const cv = document.getElementById('bgCanvas');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const resize = () => { cv.width = innerWidth; cv.height = innerHeight; };
+  resize(); window.addEventListener('resize', resize);
+  const cols = ['6,182,212','244,63,94','245,158,11','167,139,250'];
+  const pts = Array.from({length:35}, () => ({
+    x:Math.random()*cv.width, y:Math.random()*cv.height,
+    vx:(Math.random()-.5)*.18, vy:(Math.random()-.5)*.18,
+    r:Math.random()*1.1+.3, a:Math.random()*.26+.05,
+    c:cols[Math.floor(Math.random()*cols.length)]
+  }));
+  (function draw() {
+    ctx.clearRect(0,0,cv.width,cv.height);
+    pts.forEach(p => {
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=cv.width; if(p.x>cv.width)p.x=0;
+      if(p.y<0)p.y=cv.height; if(p.y>cv.height)p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${p.c},${p.a})`; ctx.fill();
+    });
+    pts.forEach((p,i) => {
+      for(let j=i+1;j<pts.length;j++){
+        const q=pts[j],dx=p.x-q.x,dy=p.y-q.y,d=Math.sqrt(dx*dx+dy*dy);
+        if(d<85){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
+          ctx.strokeStyle=`rgba(6,182,212,${.04*(1-d/85)})`;ctx.lineWidth=.4;ctx.stroke();}
+      }
+    });
+    requestAnimationFrame(draw);
+  })();
 }
 
 /* =========================
