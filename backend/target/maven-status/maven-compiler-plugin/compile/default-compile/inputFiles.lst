@@ -1,10 +1,15 @@
 C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\handler\ProfileHandler.java
 C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\handler\LoginHandler.java
+C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\Dashboard.java
 C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\dao\HistoryPomodoroDAO.java
 C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\dao\UserDAO.java
+C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\Deadline.java
+C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\HistoryPomo.java
+C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\Aktivitas.java
 C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\util\Database.java
 C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\dao\AbstractDAO.java
 C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\TimerSetting.java
+C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\Ringkasan.java
 C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\interfaces\Refreshable.java
 C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\Server.java
 C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\handler\BaseHandler.java
