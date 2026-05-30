@@ -71,6 +71,7 @@ function checkConfirm() {
 async function doLogin() {
   const username = document.getElementById('l-user').value.trim();
   const password = document.getElementById('l-pass').value;
+  const btn      = document.getElementById('btn-login');
   const rememberMe = document.querySelector('#f-login input[type="checkbox"]').checked;
 
   if (!username || !password) {
@@ -103,10 +104,9 @@ async function doLogin() {
       }));
       if (rememberMe) {
         localStorage.setItem('cleverai_user', JSON.stringify({
-        username,
-        email:      d.email,
-          fullName:   d.fullName,
+          username,
           email:      d.email,
+          fullName:   d.fullName,
           role:       d.role,
           isVerified: d.isVerified
         }));
