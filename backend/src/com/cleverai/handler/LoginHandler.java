@@ -47,6 +47,7 @@ public class LoginHandler implements HttpHandler {
             System.out.println("──────────────────────────────");
             String json = "{\"success\":true,"
                         + "\"fullName\":\"" + user.getFullName() + "\","
+                        + "\"email\":\"" + user.getEmail() + "\","
                         + "\"role\":\"" + user.getRole() + "\","
                         + "\"isVerified\":" + user.isVerified() + "}";
             sendResponse(exchange, 200, json);

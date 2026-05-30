@@ -20,7 +20,7 @@ CREATE TABLE timer_settings (
     short_break         INT DEFAULT 5,
     long_break          INT DEFAULT 15,
     auto_start_breaks   BOOLEAN DEFAULT FALSE,
-    sound_notif         BOOLEAN DEFAULT TRUE;
+    sound_notif         BOOLEAN DEFAULT TRUE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 

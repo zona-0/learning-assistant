@@ -1,4 +1,6 @@
-const API = 'http://localhost:8080/api';
+const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8080/api'
+  : window.location.origin + '/api';
 
 function switchTab(tab) {
   const lf   = document.getElementById('f-login');
@@ -69,7 +71,7 @@ function checkConfirm() {
 async function doLogin() {
   const username = document.getElementById('l-user').value.trim();
   const password = document.getElementById('l-pass').value;
-  const btn      = document.getElementById('btn-login');
+  const rememberMe = document.querySelector('#f-login input[type="checkbox"]').checked;
 
   if (!username || !password) {
     alert_('al-login', 'error', 'no username n pass');
@@ -95,12 +97,23 @@ async function doLogin() {
       sessionStorage.setItem('cleverai_user', JSON.stringify({
         username,
         fullName:   d.fullName,
+        email:      d.email,
         role:       d.role,
         isVerified: d.isVerified
       }));
+      if (rememberMe) {
+        localStorage.setItem('cleverai_user', JSON.stringify({
+        username,
+        email:      d.email,
+          fullName:   d.fullName,
+          email:      d.email,
+          role:       d.role,
+          isVerified: d.isVerified
+        }));
+      }
       setTimeout(() => {
-        window.location.href = '../dashboard/index.html';
-      }, 1100);
+        window.location.href = window.location.href.replace('/login/', '/dashboard/');
+      }, 800);
     } else {
       alert_('al-login', 'error', d.message || 'Invalid username or password.');
       btn.disabled    = false;
