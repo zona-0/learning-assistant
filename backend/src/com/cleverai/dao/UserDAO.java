@@ -46,6 +46,19 @@ public class UserDAO {
         return null;
     }
 
+    public boolean updatePassword(String username, String newPasswordHash) {
+        String sql = "UPDATE users SET password_hash = ? WHERE username = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newPasswordHash);
+            ps.setString(2, username);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     public boolean register(String username, String email, String passwordHash, String fullName) throws Exception {
         String sql = "INSERT INTO users (username, email, password_hash, full_name, role, is_verified) "
                    + "VALUES (?, ?, ?, ?, 'pelajar', FALSE)";

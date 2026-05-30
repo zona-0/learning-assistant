@@ -117,9 +117,6 @@ body{overflow:hidden}
   gap:16px;
 }
 .header-left{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.header-center{flex:1;display:flex;justify-content:center}
-.header-right{margin-left:auto;display:flex;align-items:center;gap:12px;flex-shrink:0}
-.header-left{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .header-title{font-size:16px;font-weight:700;color:var(--t);letter-spacing:-.3px}
 
 .header-center{flex:1;display:flex;justify-content:center}

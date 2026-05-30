@@ -31,7 +31,7 @@ const modeConfig = {
    ════════════════════════════════════ */
 window.addEventListener('load', () => {
   /* User pill */
-  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
   if (user) {
     const fn  = user.fullName || user.username;
     const ini = fn.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -391,6 +391,7 @@ function closeMob() {
    ════════════════════════════════════ */
 function doLogout() {
   sessionStorage.removeItem('cleverai_user');
+  localStorage.removeItem('cleverai_user');
   window.location.href = '../login/index.html';
 }
 

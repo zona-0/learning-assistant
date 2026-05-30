@@ -1,7 +1,9 @@
-const API = 'http://localhost:8080/api';
+const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8080/api'
+  : window.location.origin + '/api';
 
 window.addEventListener('load', () => {
-  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
   if (!user) { window.location.href = '../login/index.html'; return; }
 
   const fn   = user.fullName || user.username;
@@ -214,21 +216,38 @@ function checkPwStrength() {
   lbl.style.color       = l.c;
 }
 
-function changePassword() {
+async function changePassword() {
   const cur = document.getElementById('pw-current').value;
   const nw  = document.getElementById('pw-new').value;
   const cf  = document.getElementById('pw-confirm').value;
   const al  = document.getElementById('pw-alert');
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || '{}');
   al.className = 'pw-alert';
   if (!cur||!nw||!cf) { al.classList.add('error'); al.textContent='Please fill in all fields.'; return; }
   if (nw.length < 6)  { al.classList.add('error'); al.textContent='Password min. 6 characters.'; return; }
   if (nw !== cf)      { al.classList.add('error'); al.textContent='Passwords do not match.'; return; }
-  al.classList.add('success');
-  al.textContent = 'Password updated successfully!';
-  document.getElementById('pw-current').value = '';
-  document.getElementById('pw-new').value     = '';
-  document.getElementById('pw-confirm').value = '';
-  document.getElementById('pw-strength-wrap').style.display = 'none';
+  try {
+    const res = await fetch(`${API}/password/change`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user.username, oldPassword: cur, newPassword: nw })
+    });
+    const d = await res.json();
+    if (d.success) {
+      al.classList.add('success');
+      al.textContent = 'Password updated successfully!';
+      document.getElementById('pw-current').value = '';
+      document.getElementById('pw-new').value     = '';
+      document.getElementById('pw-confirm').value = '';
+      document.getElementById('pw-strength-wrap').style.display = 'none';
+    } else {
+      al.classList.add('error');
+      al.textContent = d.message || 'Failed to change password.';
+    }
+  } catch (e) {
+    al.classList.add('error');
+    al.textContent = 'Cannot connect to server.';
+  }
   setTimeout(() => { al.className = 'pw-alert hidden'; }, 3000);
 }
 
@@ -287,5 +306,6 @@ function eraseTyping(el, text) {
 
 function doLogout() {
   sessionStorage.removeItem('cleverai_user');
+  localStorage.removeItem('cleverai_user');
   window.location.href = '../login/index.html';
 }
