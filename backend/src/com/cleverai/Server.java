@@ -7,6 +7,7 @@ import com.cleverai.handler.DashboardHandler;
 import com.cleverai.handler.PasswordChangeHandler;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
+import java.io.IOException;
 
 public class Server {
     private HttpServer server;
