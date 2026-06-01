@@ -22,7 +22,7 @@ let sidebarCollapsed = false;
 let currentUser = null;
 
 window.addEventListener('load', () => {
-  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
   if (!user) { window.location.href = '../login/index.html'; return; }
   currentUser = user;
 
