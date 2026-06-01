@@ -337,11 +337,6 @@ body {
   border-bottom: .5px solid rgba(6, 182, 212, .1);
   gap: 16px;
 }
-<<<<<<< HEAD
-=======
-.header-left{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.header-title{font-size:16px;font-weight:700;color:var(--t);letter-spacing:-.3px}
->>>>>>> 92f7095f9c3f49b6eb1fa80d224036a5f9109854
 
 .header-left {
   display: flex;

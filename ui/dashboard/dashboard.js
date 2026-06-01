@@ -144,11 +144,16 @@ function renderActivities(activities) {
 
   const colorMap = { pomodoro: 'c', notes: 'r', quiz: 'a', tutor: 'v' };
 
+  const escapeHtml = (text) => {
+    if (!text) return "";
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  };
+
   feed.innerHTML = activities.map(a => `
     <div class="act-row">
       <div class="act-dot ${colorMap[a.tipe] || 'c'}"></div>
       <div class="act-info">
-        <p class="act-txt">${a.deskripsi}</p>
+        <p class="act-txt">${escapeHtml(a.deskripsi)}</p> <!-- Ganti disini -->
         <p class="act-time">${a.waktu}</p>
       </div>
     </div>
@@ -363,6 +368,7 @@ function closeMobSidebar() {
 
 function doLogout() {
   sessionStorage.removeItem('cleverai_user');
+  localStorage.removeItem('cleverai_user');
   window.location.href = '../login/index.html';
 }
 
