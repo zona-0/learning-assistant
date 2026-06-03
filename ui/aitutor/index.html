@@ -20,7 +20,7 @@
   <div class="mob-overlay" id="mob-overlay" onclick="closeMobSidebar()"></div>
   <div class="layout" id="app">
 
-    <!-- SIDEBAR -->
+    <!-- MAIN SIDEBAR -->
     <aside class="sidebar" id="sidebar">
       <div class="sb-top">
         <div class="sb-brand" id="sb-brand">
@@ -120,6 +120,13 @@
           </svg>
         </button>
         <div class="header-left">
+          <button class="header-btn header-btn-left" onclick="toggleSessionsPanel()" id="sessionsToggle" title="Chat history">
+            <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+              <rect x="2" y="3" width="16" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+              <line x1="5" y1="7" x2="15" y2="7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <line x1="5" y1="10" x2="12" y2="10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </button>
           <svg viewBox="0 0 20 20" fill="none" width="18" height="18" style="color:#a78bfa;flex-shrink:0">
             <circle cx="10" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/>
             <path d="M4 18C4 15 6.7 13 10 13C13.3 13 16 15 16 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -137,49 +144,89 @@
         </div>
       </header>
 
-      <!-- CHAT CONTENT -->
-      <div class="chat-scroll" id="chatScroll">
-        <div class="chat-container" id="chatContainer">
+      <!-- BODY: sessions panel + chat area -->
+      <div class="body-area">
 
-          <div class="welcome-card" id="welcomeCard">
-            <div class="wc-icon">
-              <svg viewBox="0 0 24 24" fill="none" width="28" height="28">
-                <circle cx="12" cy="10" r="5" stroke="#06b6d4" stroke-width="1.8"/>
-                <path d="M4 22C4 18 7.6 16 12 16C16.4 16 20 18 20 22" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- SESSIONS PANEL -->
+        <aside class="sessions-panel" id="sessionsPanel">
+          <div class="sp-header">
+            <span class="sp-title">Chat History</span>
+            <button class="sp-close" onclick="toggleSessionsPanel()" title="Close">
+              <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+                <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
               </svg>
-            </div>
-            <h2 class="wc-title">Hi, I'm your AI Tutor</h2>
-            <p class="wc-sub">Ask me anything about your studies — I'm here to help you learn.</p>
-            <div class="wc-suggestions">
-              <button class="sug-btn" data-msg="Can you explain the water cycle?">Explain the water cycle</button>
-              <button class="sug-btn" data-msg="Help me understand quadratic equations">Quadratic equations</button>
-              <button class="sug-btn" data-msg="What are the main causes of World War II?">Causes of WWII</button>
-              <button class="sug-btn" data-msg="Give me a summary of photosynthesis">Photosynthesis summary</button>
+            </button>
+          </div>
+          <button class="sp-new" onclick="newSession()">
+            <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+              <line x1="8" y1="3" x2="8" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            New Chat
+          </button>
+          <div class="sp-list" id="sessionList">
+            <div class="sp-empty" id="spEmpty">No chat history yet</div>
+          </div>
+        </aside>
+
+        <!-- CHAT AREA -->
+        <div class="chat-area">
+
+          <div class="chat-scroll" id="chatScroll">
+            <div class="chat-container" id="chatContainer">
+
+              <div class="welcome-card" id="welcomeCard">
+                <div class="wc-icon">
+                  <svg viewBox="0 0 24 24" fill="none" width="28" height="28">
+                    <circle cx="12" cy="10" r="5" stroke="#06b6d4" stroke-width="1.8"/>
+                    <path d="M4 22C4 18 7.6 16 12 16C16.4 16 20 18 20 22" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <h2 class="wc-title">Hi, I'm your AI Tutor</h2>
+                <p class="wc-sub">Ask me anything about your studies — I'm here to help you learn.</p>
+                <div class="wc-input-row">
+                  <input class="wc-input" id="wcInput" type="text" placeholder="Type your question here..." autocomplete="off">
+                  <button class="wc-go-btn" id="wcGoBtn" onclick="sendWelcomeMsg()">
+                    <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+                      <path d="M3 10L17 3L12 10L17 17L3 10Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                      <line x1="12" y1="10" x2="3" y2="10" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="wc-divider"><span>or try a suggestion</span></div>
+                <div class="wc-suggestions">
+                  <button class="sug-btn" data-msg="Can you explain the water cycle?">Explain the water cycle</button>
+                  <button class="sug-btn" data-msg="Help me understand quadratic equations">Quadratic equations</button>
+                  <button class="sug-btn" data-msg="What are the main causes of World War II?">Causes of WWII</button>
+                  <button class="sug-btn" data-msg="Give me a summary of photosynthesis">Photosynthesis summary</button>
+                </div>
+              </div>
+
+              <div class="msg-list" id="msgList"></div>
+
             </div>
           </div>
 
-          <div class="msg-list" id="msgList"></div>
+          <!-- INPUT BAR -->
+          <div class="input-bar">
+            <div class="input-wrap">
+              <textarea
+                class="chat-input"
+                id="chatInput"
+                rows="1"
+                placeholder="Ask anything..."
+              ></textarea>
+              <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                <svg viewBox="0 0 20 20" fill="none" width="18" height="18">
+                  <path d="M3 10L17 3L12 10L17 17L3 10Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                  <line x1="12" y1="10" x2="3" y2="10" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </button>
+            </div>
+          </div>
 
         </div>
-      </div>
-
-      <!-- INPUT BAR -->
-      <div class="input-bar">
-        <div class="input-wrap">
-          <textarea
-            class="chat-input"
-            id="chatInput"
-            rows="1"
-            placeholder="Ask anything..."
-          ></textarea>
-          <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-            <svg viewBox="0 0 20 20" fill="none" width="18" height="18">
-              <path d="M3 10L17 3L12 10L17 17L3 10Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-              <line x1="12" y1="10" x2="3" y2="10" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-          </button>
-        </div>
-        <p class="input-hint">AI responses are simulated. <span class="input-hint-hl">Add your API key in aitutor.js</span></p>
       </div>
 
     </div>

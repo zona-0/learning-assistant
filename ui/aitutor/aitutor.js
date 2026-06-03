@@ -1,41 +1,32 @@
-/*
- * ─── AI TUTOR CHAT ──────────────────────────────────────
- *
- *   AI INTEGRATION HOOK:
- *   Search for "TODO-AI" markers below. Replace the mock
- *   response with your own API call (e.g. OpenAI, Gemini).
- *
- *   Example:
- *     const res = await fetch('https://api.openai.com/v1/chat/...', {
- *       method: 'POST',
- *       headers: { 'Authorization': 'Bearer YOUR_KEY', 'Content-Type': 'application/json' },
- *       body: JSON.stringify({ model: 'gpt-4', messages: [...history, { role: 'user', content: msg }] })
- *     });
- *     const data = await res.json();
- *     return data.choices[0].message.content;
- * ─────────────────────────────────────────────────────────
- */
+const API = (!window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8080/api'
+  : window.location.origin + '/api';
 
 let sidebarCollapsed = false;
-let messageCount = 0;
+let currentUser = null;
+let currentSessionId = null;
+let sessions = [];
 
 window.addEventListener('load', () => {
-  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
-  if (!user) { window.location.href = '../login/index.html'; return; }
+  currentUser = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
+  if (!currentUser) { window.location.href = '../login/index.html'; return; }
 
-  document.getElementById('udisplay').textContent = user.fullName || user.username;
-  document.getElementById('urole').textContent = user.role === 'admin' ? 'Administrator' : 'Pelajar';
-  const ini = (user.fullName || user.username).split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('udisplay').textContent = currentUser.fullName || currentUser.username;
+  document.getElementById('urole').textContent = currentUser.role === 'admin' ? 'Administrator' : 'Pelajar';
+  const ini = (currentUser.fullName || currentUser.username).split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   document.getElementById('ua').textContent = ini;
 
   initBg();
   setupChatInput();
   setupSuggestions();
+  setupWelcomeInput();
 
   document.querySelectorAll('.sb-item, .sb-logout').forEach(el => {
     const lbl = el.querySelector('.sb-label');
     if (lbl) el.setAttribute('data-tip', lbl.textContent.trim());
   });
+
+  loadSessions();
 });
 
 function toggleSidebar() {
@@ -58,7 +49,125 @@ function doLogout() {
   window.location.href = '../login/index.html';
 }
 
-/* ─── CHAT ─────────────────────────────────────────────── */
+/* ─── SESSIONS ──────────────────────────────────── */
+
+async function loadSessions() {
+  try {
+    const res = await fetch(`${API}/chat/sessions?username=${encodeURIComponent(currentUser.username)}`);
+    if (!res.ok) return;
+    sessions = await res.json();
+    renderSessionList();
+    if (sessions.length > 0) {
+      switchSession(sessions[0].id);
+    }
+  } catch (e) {
+    console.error('Failed to load sessions:', e);
+  }
+}
+
+function renderSessionList() {
+  const list = document.getElementById('sessionList');
+  const empty = document.getElementById('spEmpty');
+  list.innerHTML = '';
+  if (sessions.length === 0) {
+    list.appendChild(empty);
+    return;
+  }
+  sessions.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'sp-item' + (s.id === currentSessionId ? ' active' : '');
+    div.innerHTML = `
+      <span class="sp-item-title">${escapeHtml(s.title)}</span>
+      <button class="sp-item-del" onclick="event.stopPropagation();deleteSession(${s.id})" title="Delete">
+        <svg viewBox="0 0 14 14" fill="none" width="12" height="12">
+          <line x1="2" y1="2" x2="12" y2="12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="12" y1="2" x2="2" y2="12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </button>`;
+    div.addEventListener('click', () => switchSession(s.id));
+    list.appendChild(div);
+  });
+}
+
+async function switchSession(sessionId) {
+  if (sessionId === currentSessionId) return;
+  currentSessionId = sessionId;
+  renderSessionList();
+  document.getElementById('msgList').innerHTML = '';
+  document.getElementById('welcomeCard').style.display = 'none';
+
+  try {
+    const res = await fetch(`${API}/chat/history?username=${encodeURIComponent(currentUser.username)}&sessionId=${sessionId}`);
+    if (!res.ok) return;
+    const messages = await res.json();
+    messages.forEach(msg => appendMessage(msg.role, msg.message, false));
+    if (messages.length === 0) {
+      document.getElementById('welcomeCard').style.display = '';
+    }
+  } catch (e) {
+    console.error('Failed to load history:', e);
+  }
+}
+
+async function newSession() {
+  const tempId = -Date.now();
+  sessions.unshift({ id: tempId, title: 'New Chat' });
+  currentSessionId = tempId;
+  document.getElementById('msgList').innerHTML = '';
+  document.getElementById('welcomeCard').style.display = '';
+  renderSessionList();
+  closeSessionsPanel();
+
+  try {
+    const res = await fetch(`${API}/chat/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: currentUser.username, title: 'New Chat' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const s = sessions.find(x => x.id === tempId);
+      if (s) s.id = data.sessionId;
+      if (currentSessionId === tempId) currentSessionId = data.sessionId;
+      renderSessionList();
+    }
+  } catch (e) {
+    console.error('Using local session (backend unavailable):', e);
+  }
+}
+
+async function deleteSession(sessionId) {
+  if (!confirm('Delete this chat?')) return;
+  try {
+    await fetch(`${API}/chat/sessions`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: currentUser.username, sessionId: String(sessionId) })
+    });
+    sessions = sessions.filter(s => s.id !== sessionId);
+    if (currentSessionId === sessionId) {
+      currentSessionId = null;
+      document.getElementById('msgList').innerHTML = '';
+      document.getElementById('welcomeCard').style.display = '';
+    }
+    renderSessionList();
+    if (sessions.length > 0 && !currentSessionId) {
+      switchSession(sessions[0].id);
+    }
+  } catch (e) {
+    console.error('Failed to delete session:', e);
+  }
+}
+
+function toggleSessionsPanel() {
+  document.getElementById('sessionsPanel').classList.toggle('closed');
+}
+
+function closeSessionsPanel() {
+  document.getElementById('sessionsPanel').classList.add('closed');
+}
+
+/* ─── CHAT ──────────────────────────────────────── */
 
 function setupChatInput() {
   const input = document.getElementById('chatInput');
@@ -80,49 +189,134 @@ function setupSuggestions() {
   });
 }
 
+function setupWelcomeInput() {
+  const input = document.getElementById('wcInput');
+  const btn = document.getElementById('wcGoBtn');
+  if (!input) return;
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendWelcomeMsg();
+    }
+  });
+}
+
+async function sendWelcomeMsg() {
+  const input = document.getElementById('wcInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  await doSendMessage(msg);
+}
+
 function autoResize(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
-function sendMessage() {
+async function ensureSession() {
+  if (currentSessionId) return;
+  const tempId = -Date.now();
+  sessions.unshift({ id: tempId, title: 'New Chat' });
+  currentSessionId = tempId;
+  renderSessionList();
+
+  try {
+    const res = await fetch(`${API}/chat/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: currentUser.username, title: 'New Chat' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const s = sessions.find(x => x.id === tempId);
+      if (s) s.id = data.sessionId;
+      if (currentSessionId === tempId) currentSessionId = data.sessionId;
+      renderSessionList();
+    }
+  } catch (e) {
+    console.error('Using local session (backend unavailable):', e);
+  }
+}
+
+async function sendMessage() {
   const input = document.getElementById('chatInput');
   const msg = input.value.trim();
   if (!msg) return;
-
   input.value = '';
   input.style.height = 'auto';
+  await doSendMessage(msg);
+}
 
+async function doSendMessage(msg) {
   hideWelcome();
   appendMessage('user', msg);
   disableInput(true);
 
-  const aiMsgId = appendTyping();
+  await ensureSession();
 
-  /* ─── TODO-AI: Replace with your AI API call ────────── */
-  simulateAIResponse(msg, aiMsgId);
-  /* ───────────────────────────────────────────────────── */
+  const s = sessions.find(x => x.id === currentSessionId);
+  const isFirstMessage = s && s.title === 'New Chat';
+
+  await saveMessage('user', msg);
+
+  const aiMsgId = appendTyping();
+  simulateAIResponse(msg, aiMsgId, isFirstMessage);
 }
 
-function appendMessage(role, text) {
+async function handleAIResponse(aiReply, typingId) {
+  removeTyping(typingId);
+  const row = await typeMessage(aiReply);
+  disableInput(false);
+  scrollToBottom();
+  await saveMessage('ai', aiReply);
+}
+
+function typeMessage(text) {
+  return new Promise(resolve => {
+    const list = document.getElementById('msgList');
+    const row = document.createElement('div');
+    row.className = 'msg-row ai';
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar';
+    avatar.textContent = 'AI';
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    list.appendChild(row);
+
+    let i = 0;
+    const speed = 15;
+    function tick() {
+      if (i < text.length) {
+        const chunk = text.slice(i, i + 3);
+        bubble.textContent += chunk;
+        i += 3;
+        scrollToBottom();
+        setTimeout(tick, speed);
+      } else {
+        resolve(row);
+      }
+    }
+    tick();
+  });
+}
+
+function appendMessage(role, text, scroll = true) {
   const list = document.getElementById('msgList');
   const row = document.createElement('div');
   row.className = `msg-row ${role}`;
-
   const avatar = document.createElement('div');
   avatar.className = 'msg-avatar';
   avatar.textContent = role === 'ai' ? 'AI' : 'U';
-
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   bubble.textContent = text;
-
   row.appendChild(avatar);
   row.appendChild(bubble);
   list.appendChild(row);
-  scrollToBottom();
-
-  messageCount++;
+  if (scroll) scrollToBottom();
   return row;
 }
 
@@ -131,15 +325,12 @@ function appendTyping() {
   const row = document.createElement('div');
   row.className = 'msg-row ai';
   row.id = 'typing-' + Date.now();
-
   const avatar = document.createElement('div');
   avatar.className = 'msg-avatar';
   avatar.textContent = 'AI';
-
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-
   row.appendChild(avatar);
   row.appendChild(bubble);
   list.appendChild(row);
@@ -167,35 +358,69 @@ function hideWelcome() {
   if (card) card.style.display = 'none';
 }
 
-/* ─── TODO-AI: Mock AI response ──────────────────────────
- *  Replace the body of this function with your real AI
- *  integration. It receives the user's message and the
- *  typing indicator element ID. Call removeTyping(typingId)
- *  and appendMessage('ai', response) when done.
- * ──────────────────────────────────────────────────────── */
-
-const MOCK_REPLIES = [
-  "Great question! Here's a helpful explanation to get you started. The key concept involves understanding the fundamental principles and how they apply to different scenarios. Would you like me to go deeper into any specific aspect?",
-  "That's an interesting topic! Let me break it down into simpler parts. First, we need to understand the core idea, then we can explore how it connects to related subjects you're studying. Feel free to ask follow-up questions!",
-  "I'd be happy to help with that! Here's a concise overview of what you need to know. The main points are: (1) understand the basics, (2) practice with examples, and (3) review common pitfalls. Let me know if you'd like more detail on any of these.",
-  "Think of it this way — every complex topic becomes manageable when you break it into smaller pieces. Start with the foundation, build up gradually, and don't hesitate to revisit concepts you find tricky. That's the best way to learn effectively!",
-  "Here's a practical approach: try working through an example step by step. When you encounter something unfamiliar, take a moment to look up the underlying concept. This active learning method helps reinforce your understanding much better than passive reading."
-];
-
-function simulateAIResponse(userMsg, typingId) {
-  const delay = 800 + Math.random() * 1200;
-
-  setTimeout(() => {
-    removeTyping(typingId);
-
-    const reply = MOCK_REPLIES[Math.floor(Math.random() * MOCK_REPLIES.length)];
-    appendMessage('ai', reply);
-    disableInput(false);
-    scrollToBottom();
-  }, delay);
+async function saveMessage(role, message) {
+  if (!currentSessionId) return;
+  try {
+    const res = await fetch(`${API}/chat/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: currentUser.username, sessionId: String(currentSessionId), role, message })
+    });
+    if (!res.ok) return;
+    const s = sessions.find(x => x.id === currentSessionId);
+    if (s && role === 'user') {
+      s.title = message.length > 70 ? [...message].slice(0, 70).join('') + '...' : message;
+      renderSessionList();
+    }
+  } catch (e) {
+    console.error('Failed to save message:', e);
+  }
 }
 
-/* ─── BG CANVAS ─────────────────────────────────────────── */
+async function simulateAIResponse(userMsg, typingId, generateTitle) {
+  try {
+    const res = await fetch(`${API}/chat/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: userMsg, generateTitle: generateTitle ? 'true' : 'false' })
+    });
+    const data = await res.json();
+    const reply = data.reply || data.error || 'Sorry, I could not process that request.';
+
+    if (generateTitle && data.title) {
+      const cleanTitle = data.title.trim();
+      if (cleanTitle) {
+        const s = sessions.find(x => x.id === currentSessionId);
+        if (s) {
+          s.title = cleanTitle;
+          renderSessionList();
+          fetch(`${API}/chat/title`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: currentUser.username, sessionId: String(currentSessionId), title: cleanTitle })
+          }).catch(e => console.error('Failed to persist title:', e));
+        }
+      }
+    }
+
+    await handleAIResponse(reply, typingId);
+  } catch (e) {
+    removeTyping(typingId);
+    appendMessage('ai', 'Sorry, I could not reach the AI service. The backend might be down or AI_API_KEY is not set.');
+    disableInput(false);
+    scrollToBottom();
+  }
+}
+
+/* ─── HELPERS ───────────────────────────────────── */
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ─── BG CANVAS ─────────────────────────────────── */
 
 function initBg() {
   const cv = document.getElementById('bgCanvas');

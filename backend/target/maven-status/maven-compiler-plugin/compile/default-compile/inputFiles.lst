@@ -1,21 +1,30 @@
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\handler\ProfileHandler.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\handler\LoginHandler.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\Dashboard.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\dao\HistoryPomodoroDAO.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\dao\UserDAO.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\Deadline.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\HistoryPomo.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\Aktivitas.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\util\Database.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\dao\AbstractDAO.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\TimerSetting.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\Ringkasan.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\interfaces\Refreshable.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\Server.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\handler\BaseHandler.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\handler\RegisterHandler.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\Main.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\dao\DashboardDAO.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\handler\DashboardHandler.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\model\User.java
-C:\Users\Raihan\Documents\GitHub\learning-assistant\backend\src\com\cleverai\handler\PasswordChangeHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\interfaces\Refreshable.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\model\Aktivitas.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\model\Deadline.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\model\Dashboard.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\handler\BaseHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\handler\LoginHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\dao\UserDAO.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\handler\AITutorHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\model\TimerSetting.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\dao\DashboardDAO.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\handler\PasswordChangeHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\model\ChatMessage.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\Server.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\handler\RegisterHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\handler\QuizResultHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\model\HistoryPomo.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\handler\DashboardHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\model\User.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\handler\ProfileHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\handler\ChatHistoryHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\model\ChatSession.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\dao\AbstractDAO.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\model\Ringkasan.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\dao\QuizResultDAO.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\Main.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\handler\QuizHandler.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\dao\ChatHistoryDAO.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\util\JsonUtil.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\util\Database.java
+C:\Users\M Arsyad\Documents\projects\learning-assistant-main\backend\src\com\cleverai\dao\HistoryPomodoroDAO.java

@@ -2,12 +2,13 @@ package com.cleverai.handler;
 
 import com.cleverai.dao.UserDAO;
 import com.cleverai.model.User;
+import com.cleverai.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class LoginHandler implements HttpHandler {
@@ -17,7 +18,6 @@ public class LoginHandler implements HttpHandler {
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        exchange.getResponseHeaders().add("Content-Type", "application/json");
 
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
             exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -27,12 +27,12 @@ public class LoginHandler implements HttpHandler {
         }
 
         if (!"POST".equals(exchange.getRequestMethod())) {
-            sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+            JsonUtil.sendResponse(exchange, 405, Map.of("error", "Method not allowed"));
             return;
         }
 
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        Map<String, String> params = parseBody(body);
+        Map<String, String> params = JsonUtil.parseBody(body);
 
         String username = params.getOrDefault("username", "");
         String password = params.getOrDefault("password", "");
@@ -45,41 +45,17 @@ public class LoginHandler implements HttpHandler {
         if (user != null) {
             System.out.println("[LOGIN] SUCCESS " + user.getFullName() + " | role: " + user.getRole());
             System.out.println("──────────────────────────────");
-            String json = "{\"success\":true,"
-                        + "\"fullName\":\"" + user.getFullName() + "\","
-                        + "\"email\":\"" + user.getEmail() + "\","
-                        + "\"role\":\"" + user.getRole() + "\","
-                        + "\"isVerified\":" + user.isVerified() + "}";
-            sendResponse(exchange, 200, json);
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("success", true);
+            resp.put("fullName", user.getFullName());
+            resp.put("email", user.getEmail());
+            resp.put("role", user.getRole());
+            resp.put("isVerified", user.isVerified());
+            JsonUtil.sendResponse(exchange, 200, resp);
         } else {
             System.out.println("[LOGIN] FAILED wrong credentials");
             System.out.println("──────────────────────────────");
-            sendResponse(exchange, 401, "{\"success\":false,\"message\":\"Invalid username or password.\"}");
+            JsonUtil.sendResponse(exchange, 401, Map.of("success", false, "message", "Invalid username or password."));
         }
-    }
-
-    private void sendResponse(HttpExchange ex, int code, String body) throws IOException {
-        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-        ex.sendResponseHeaders(code, bytes.length);
-        ex.getResponseBody().write(bytes);
-        ex.getResponseBody().close();
-    }
-
-    private Map<String, String> parseBody(String body) {
-        Map<String, String> map = new HashMap<>();
-        try {
-            body = body.trim().replaceAll("^\\{|\\}$", "");
-            for (String pair : body.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)")) {
-                String[] kv = pair.split("\":\"");
-                if (kv.length == 2) {
-                    String key   = kv[0].replaceAll("\"", "").trim();
-                    String value = kv[1].replaceAll("\"", "").trim();
-                    map.put(key, value);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return map;
     }
 }

@@ -5,6 +5,10 @@ import com.cleverai.handler.RegisterHandler;
 import com.cleverai.handler.ProfileHandler;
 import com.cleverai.handler.DashboardHandler;
 import com.cleverai.handler.PasswordChangeHandler;
+import com.cleverai.handler.ChatHistoryHandler;
+import com.cleverai.handler.AITutorHandler;
+import com.cleverai.handler.QuizHandler;
+import com.cleverai.handler.QuizResultHandler;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.io.IOException;
@@ -18,7 +22,17 @@ public class Server {
         server.createContext("/api/profile/update", new ProfileHandler());
         server.createContext("/api/dashboard", new DashboardHandler());
         server.createContext("/api/password/change", new PasswordChangeHandler());
-        server.setExecutor(null); 
+        server.createContext("/api/chat/history", new ChatHistoryHandler());
+        server.createContext("/api/chat/save", new ChatHistoryHandler());
+        server.createContext("/api/chat/sessions", new ChatHistoryHandler());
+        server.createContext("/api/chat/clear", new ChatHistoryHandler());
+        server.createContext("/api/chat/title", new ChatHistoryHandler());
+        server.createContext("/api/chat/ask", new AITutorHandler());
+        server.createContext("/api/quiz/generate", new QuizHandler());
+        QuizResultHandler quizResultHandler = new QuizResultHandler();
+        server.createContext("/api/quiz/save", quizResultHandler);
+        server.createContext("/api/quiz/history", quizResultHandler);
+        server.setExecutor(null);
     }
     public void start() {
         server.start();

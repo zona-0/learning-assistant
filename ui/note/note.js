@@ -230,6 +230,44 @@ function deleteNote(index) {
   showToast("Note deleted");
 }
 
+function downloadNote(index) {
+  const note = notes[index];
+  if (!note) return;
+
+  const temp = document.createElement("div");
+  temp.innerHTML = note.content;
+  const text = temp.innerText;
+
+  downloadText(text, sanitizeFilename(note.title));
+}
+
+function downloadCurrentNote() {
+  if (!quill) return;
+
+  const title = document.getElementById("noteTitle").value.trim() || "untitled";
+  const text = quill.getText().trim();
+
+  if (!text) {
+    showToast("Note is empty", "error");
+    return;
+  }
+
+  downloadText(text, sanitizeFilename(title));
+}
+
+function downloadText(text, filename) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("Note saved as " + filename);
+}
+
 /* =========================
    MODAL
 ========================= */
@@ -293,6 +331,13 @@ function renderNotes(list = notes) {
             </svg>
           </button>
 
+          <button class="icon-btn download-btn" data-index="${index}">
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="none">
+              <path d="M10 3V13M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 15V17H16V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+
           <button class="icon-btn delete-btn" data-index="${index}">
             <svg viewBox="0 0 20 20" width="16" height="16" fill="none">
               <path d="M5 6H15" stroke="currentColor" stroke-width="1.5"/>
@@ -310,6 +355,11 @@ function renderNotes(list = notes) {
     card.querySelector(".edit-btn").addEventListener("click", e => {
       e.stopPropagation();
       editNote(index);
+    });
+
+    card.querySelector(".download-btn").addEventListener("click", e => {
+      e.stopPropagation();
+      downloadNote(index);
     });
 
     card.querySelector(".delete-btn").addEventListener("click", e => {
@@ -448,6 +498,13 @@ function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
+}
+
+function sanitizeFilename(title) {
+  let name = title.replace(/[/\\:*?"<>|]/g, "").trim();
+  if (!name) name = "untitled";
+  if (name.length > 50) name = name.substring(0, 50);
+  return name + ".txt";
 }
 
 /* =========================

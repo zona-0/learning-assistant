@@ -1,4 +1,4 @@
-const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+const API = (!window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? 'http://localhost:8080/api'
   : window.location.origin + '/api';
 
@@ -260,9 +260,8 @@ function adjustCounter(key, delta) {
   document.getElementById(key+'-val').textContent = pomVals[key];
 }
 
-function savePomSettings() {
+function savePomSettings(btn) {
   localStorage.setItem('pom_settings', JSON.stringify(pomVals));
-  const btn = event.target;
   const orig = btn.textContent;
   btn.textContent = 'Saved!';
   btn.style.cssText = 'background:rgba(52,211,153,.2);border-color:rgba(52,211,153,.4);color:#6ee7b7';

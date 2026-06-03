@@ -2,13 +2,13 @@ package com.cleverai.handler;
 
 import com.cleverai.dao.UserDAO;
 import com.cleverai.model.User;
+import com.cleverai.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.HashMap;
 import java.util.Map;
 
 public class PasswordChangeHandler implements HttpHandler {
@@ -18,7 +18,6 @@ public class PasswordChangeHandler implements HttpHandler {
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        exchange.getResponseHeaders().add("Content-Type", "application/json");
 
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
             exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -28,12 +27,12 @@ public class PasswordChangeHandler implements HttpHandler {
         }
 
         if (!"POST".equals(exchange.getRequestMethod())) {
-            sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+            JsonUtil.sendResponse(exchange, 405, Map.of("error", "Method not allowed"));
             return;
         }
 
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        Map<String, String> params = parseBody(body);
+        Map<String, String> params = JsonUtil.parseBody(body);
 
         String username    = params.getOrDefault("username", "").trim();
         String oldPassword = params.getOrDefault("oldPassword", "");
@@ -45,14 +44,14 @@ public class PasswordChangeHandler implements HttpHandler {
         if (username.isEmpty() || oldPassword.isEmpty() || newPassword.isEmpty()) {
             System.out.println("[PASSWORD] FAILED missing fields");
             System.out.println("──────────────────────────────");
-            sendResponse(exchange, 400, "{\"success\":false,\"message\":\"All fields are required.\"}");
+            JsonUtil.sendResponse(exchange, 400, Map.of("success", false, "message", "All fields are required."));
             return;
         }
 
         if (newPassword.length() < 6) {
             System.out.println("[PASSWORD] FAILED new password too short");
             System.out.println("──────────────────────────────");
-            sendResponse(exchange, 400, "{\"success\":false,\"message\":\"New password must be at least 6 characters.\"}");
+            JsonUtil.sendResponse(exchange, 400, Map.of("success", false, "message", "New password must be at least 6 characters."));
             return;
         }
 
@@ -60,7 +59,7 @@ public class PasswordChangeHandler implements HttpHandler {
         if (user == null) {
             System.out.println("[PASSWORD] FAILED wrong old password");
             System.out.println("──────────────────────────────");
-            sendResponse(exchange, 401, "{\"success\":false,\"message\":\"Current password is incorrect.\"}");
+            JsonUtil.sendResponse(exchange, 401, Map.of("success", false, "message", "Current password is incorrect."));
             return;
         }
 
@@ -71,15 +70,15 @@ public class PasswordChangeHandler implements HttpHandler {
             if (updated) {
                 System.out.println("[PASSWORD] SUCCESS " + username);
                 System.out.println("──────────────────────────────");
-                sendResponse(exchange, 200, "{\"success\":true,\"message\":\"Password changed successfully.\"}");
+                JsonUtil.sendResponse(exchange, 200, Map.of("success", true, "message", "Password changed successfully."));
             } else {
-                sendResponse(exchange, 500, "{\"success\":false,\"message\":\"Failed to update password.\"}");
+                JsonUtil.sendResponse(exchange, 500, Map.of("success", false, "message", "Failed to update password."));
             }
         } catch (Exception e) {
             System.out.println("[PASSWORD] ERROR " + e.getMessage());
             System.out.println("──────────────────────────────");
             e.printStackTrace();
-            sendResponse(exchange, 500, "{\"success\":false,\"message\":\"Server error.\"}");
+            JsonUtil.sendResponse(exchange, 500, Map.of("success", false, "message", "Server error."));
         }
     }
 
@@ -89,45 +88,5 @@ public class PasswordChangeHandler implements HttpHandler {
         StringBuilder hex = new StringBuilder();
         for (byte b : hash) hex.append(String.format("%02x", b));
         return hex.toString();
-    }
-
-    private void sendResponse(HttpExchange ex, int code, String body) throws IOException {
-        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-        ex.sendResponseHeaders(code, bytes.length);
-        ex.getResponseBody().write(bytes);
-        ex.getResponseBody().close();
-    }
-
-    private Map<String, String> parseBody(String body) {
-        Map<String, String> map = new HashMap<>();
-        try {
-            body = body.trim();
-            int i = 0;
-            while (i < body.length()) {
-                int keyStart = body.indexOf('"', i);
-                if (keyStart < 0) break;
-                int keyEnd = body.indexOf('"', keyStart + 1);
-                if (keyEnd < 0) break;
-                String key = body.substring(keyStart + 1, keyEnd);
-
-                int colon = body.indexOf(':', keyEnd + 1);
-                if (colon < 0) break;
-
-                int valStart = body.indexOf('"', colon + 1);
-                if (valStart < 0) break;
-
-                int valEnd = valStart + 1;
-                while (valEnd < body.length()) {
-                    if (body.charAt(valEnd) == '"' && body.charAt(valEnd - 1) != '\\') break;
-                    valEnd++;
-                }
-                String value = body.substring(valStart + 1, valEnd);
-                map.put(key, value);
-                i = valEnd + 1;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return map;
     }
 }

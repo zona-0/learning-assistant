@@ -1,4 +1,6 @@
-const API = 'http://localhost:8080/api';
+const API = (!window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8080/api'
+  : window.location.origin + '/api';
 
 const DEFAULT_DATA = {
   week: {

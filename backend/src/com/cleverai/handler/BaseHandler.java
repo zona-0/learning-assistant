@@ -1,10 +1,10 @@
 package com.cleverai.handler;
 
+import com.cleverai.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,7 +13,6 @@ public abstract class BaseHandler implements HttpHandler {
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        exchange.getResponseHeaders().add("Content-Type", "application/json");
 
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
             exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -26,18 +25,11 @@ public abstract class BaseHandler implements HttpHandler {
             processRequest(exchange);
         } catch (Exception e) {
             e.printStackTrace();
-            sendResponse(exchange, 500, "{\"success\":false,\"message\":\"Internal server error\"}");
+            JsonUtil.sendResponse(exchange, 500, Map.of("success", false, "message", "Internal server error"));
         }
     }
 
     protected abstract void processRequest(HttpExchange exchange) throws Exception;
-
-    protected void sendResponse(HttpExchange ex, int code, String body) throws IOException {
-        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-        ex.sendResponseHeaders(code, bytes.length);
-        ex.getResponseBody().write(bytes);
-        ex.getResponseBody().close();
-    }
 
     protected Map<String, String> queryToMap(String query) {
         Map<String, String> result = new HashMap<>();

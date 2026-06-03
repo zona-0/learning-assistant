@@ -25,7 +25,9 @@ CREATE TABLE quiz_results (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     score INT,
+    total_questions INT DEFAULT 0,
     subject VARCHAR(100),
+    questions_data JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -69,6 +71,28 @@ CREATE TABLE history_pomodoro (
     waktu_mulai   DATETIME DEFAULT CURRENT_TIMESTAMP,
     durasi_menit  INT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Table buat nyimpen sesi chat AI tutor
+CREATE TABLE chat_sessions (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    user_id     INT NOT NULL,
+    title       VARCHAR(200) NOT NULL DEFAULT 'New Chat',
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Table buat nyimpen chat history AI tutor
+CREATE TABLE chat_history (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    user_id     INT NOT NULL,
+    session_id  INT NOT NULL,
+    role        ENUM('user','ai') NOT NULL,
+    message     TEXT NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
 );
 
 INSERT INTO users (username, email, password_hash, full_name, role, is_verified)

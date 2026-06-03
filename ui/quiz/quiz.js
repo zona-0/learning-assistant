@@ -1,31 +1,6 @@
-/*
- * ─── AI QUIZ ────────────────────────────────────────────
- *
- *   AI INTEGRATION HOOK:
- *   Search for "TODO-AI" markers below. Replace the mock
- *   question generator with your own AI API call.
- *
- *   The function generateQuestions(topic, count) should
- *   return an array of question objects:
- *
- *     [{
- *       question: "What is ...?",
- *       options:  ["A", "B", "C", "D"],
- *       answer:   0   // index of correct option
- *     }, ...]
- *
- *   Example using OpenAI:
- *     const res = await fetch('https://api.openai.com/v1/chat/...', {
- *       method: 'POST',
- *       headers: { 'Authorization': 'Bearer YOUR_KEY', 'Content-Type': 'application/json' },
- *       body: JSON.stringify({ model: 'gpt-4', messages: [
- *         { role: 'system', content: 'Generate quiz questions as JSON array...' },
- *         { role: 'user', content: `Topic: ${topic}, Count: ${count}` }
- *       ]})
- *     });
- *     return (await res.json()).questions;
- * ─────────────────────────────────────────────────────────
- */
+const API = (!window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8080/api'
+  : window.location.origin + '/api';
 
 let sidebarCollapsed = false;
 let questions = [];
@@ -33,6 +8,11 @@ let currentQ = 0;
 let score = 0;
 let answered = false;
 let totalQuestions = 5;
+let selectedFile = null;
+let userAnswers = [];
+let currentTopic = '';
+let historyOpen = false;
+let attempts = [];
 
 window.addEventListener('load', () => {
   const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
@@ -49,6 +29,9 @@ window.addEventListener('load', () => {
     const lbl = el.querySelector('.sb-label');
     if (lbl) el.setAttribute('data-tip', lbl.textContent.trim());
   });
+
+  setupFileDrag();
+  setupHistoryBtn();
 });
 
 function toggleSidebar() {
@@ -71,16 +54,55 @@ function doLogout() {
   window.location.href = '../login/index.html';
 }
 
-/* ─── COUNT ADJUST ─────────────────────────────────────── */
-
+/* -- COUNT ADJUST -- */
 function adjustCount(delta) {
   totalQuestions = Math.max(1, Math.min(20, totalQuestions + delta));
   document.getElementById('qCount').textContent = totalQuestions;
 }
 
-/* ─── START QUIZ ───────────────────────────────────────── */
+/* -- FILE UPLOAD -- */
+function setupFileDrag() {
+  const zone = document.getElementById('fileZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => { zone.classList.remove('dragover'); });
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); const file = e.dataTransfer.files[0]; if (file) handleFile(file); });
+}
 
-function startQuiz() {
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (file) handleFile(file);
+}
+
+function handleFile(file) {
+  const allowed = ['.txt', '.md', '.csv'];
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+  if (!allowed.includes(ext)) {
+    alert('Only .txt, .md, and .csv files are supported.');
+    document.getElementById('fileInput').value = '';
+    return;
+  }
+  if (file.size > 1048576) {
+    alert('File is too large. Maximum size is 1 MB.');
+    document.getElementById('fileInput').value = '';
+    return;
+  }
+  selectedFile = file;
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileInfo').style.display = 'flex';
+  document.getElementById('filePlaceholder').style.display = 'none';
+  document.getElementById('fileZone').classList.add('has-file');
+}
+
+function removeFile() {
+  selectedFile = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileInfo').style.display = 'none';
+  document.getElementById('filePlaceholder').style.display = 'flex';
+  document.getElementById('fileZone').classList.remove('has-file');
+}
+
+/* -- START QUIZ -- */
+async function startQuiz() {
   const topic = document.getElementById('topicInput').value.trim();
   if (!topic) {
     document.getElementById('topicInput').focus();
@@ -89,101 +111,65 @@ function startQuiz() {
     return;
   }
 
+  currentTopic = topic;
+  closeHistoryPanel();
+
   document.getElementById('quizSetup').style.display = 'none';
   document.getElementById('resultScreen').style.display = 'none';
+  document.getElementById('reviewScreen').style.display = 'none';
   document.getElementById('quizScreen').style.display = 'flex';
 
   currentQ = 0;
   score = 0;
   answered = false;
+  userAnswers = [];
 
   document.getElementById('qpTopic').textContent = topic;
   document.getElementById('qpScore').textContent = '0 / ' + totalQuestions;
   document.getElementById('qpFill').style.width = '0%';
 
-  /* ───── TODO-AI: Replace with real AI call ──────────── */
-  generateMockQuestions(topic, totalQuestions);
-  /* ───────────────────────────────────────────────────── */
-}
-
-/* ─── TODO-AI: Mock question generator ───────────────────
- *  Replace this function with your AI API call that
- *  returns questions based on the topic and count.
- * ──────────────────────────────────────────────────────── */
-
-const MOCK_QUESTIONS = [
-  {
-    question: "What is the primary function of the mitochondria in a cell?",
-    options: ["Protein synthesis", "Energy production", "Waste elimination", "Cell division"],
-    answer: 1
-  },
-  {
-    question: "Which of the following is a renewable energy source?",
-    options: ["Coal", "Natural gas", "Solar power", "Nuclear fission"],
-    answer: 2
-  },
-  {
-    question: "What does HTML stand for?",
-    options: ["Hyper Text Markup Language", "High Tech Modern Language", "Home Tool Markup Language", "Hyper Transfer Markup Language"],
-    answer: 0
-  },
-  {
-    question: "Which planet is known as the Red Planet?",
-    options: ["Venus", "Saturn", "Jupiter", "Mars"],
-    answer: 3
-  },
-  {
-    question: "What is the chemical symbol for gold?",
-    options: ["Go", "Gd", "Au", "Ag"],
-    answer: 2
-  },
-  {
-    question: "Which gas do plants absorb from the atmosphere during photosynthesis?",
-    options: ["Oxygen", "Nitrogen", "Carbon dioxide", "Hydrogen"],
-    answer: 2
-  },
-  {
-    question: "What is the largest ocean on Earth?",
-    options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
-    answer: 3
-  },
-  {
-    question: "Who developed the theory of general relativity?",
-    options: ["Isaac Newton", "Albert Einstein", "Nikola Tesla", "Galileo Galilei"],
-    answer: 1
-  },
-  {
-    question: "What is the boiling point of water at sea level?",
-    options: ["90°C", "100°C", "110°C", "120°C"],
-    answer: 1
-  },
-  {
-    question: "Which programming language is primarily used for web development?",
-    options: ["Python", "C++", "JavaScript", "Swift"],
-    answer: 2
+  let fileContent = null;
+  if (selectedFile) {
+    fileContent = await readFileContent(selectedFile);
   }
-];
-
-function generateMockQuestions(topic, count) {
-  /* Simulate AI delay */
-  const delay = 600 + Math.random() * 600;
-  setTimeout(() => {
-    questions = MOCK_QUESTIONS.slice(0, Math.min(count, MOCK_QUESTIONS.length));
-    if (questions.length < count) {
-      for (let i = questions.length; i < count; i++) {
-        questions.push({
-          question: `Sample question #${i + 1} about ${topic}?`,
-          options: ["Option A", "Option B", "Option C", "Option D"],
-          answer: Math.floor(Math.random() * 4)
-        });
-      }
-    }
-    renderQuestion();
-  }, delay);
+  generateQuestions(topic, totalQuestions, fileContent);
 }
 
-/* ─── RENDER QUESTION ──────────────────────────────────── */
+function readFileContent(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => resolve(null);
+    reader.readAsText(file);
+  });
+}
 
+async function generateQuestions(topic, count, fileContent) {
+  userAnswers = [];
+  try {
+    const body = { topic, count };
+    if (fileContent) body.fileContent = fileContent;
+    const res = await fetch(`${API}/quiz/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    questions = data.questions || [];
+    if (!questions.length) throw new Error('No questions returned');
+  } catch (e) {
+    questions = [
+      {
+        question: "Could not generate questions from AI. Is the backend running and AI_API_KEY set?",
+        options: ["Retry", "Change topic", "Check backend", "All of the above"],
+        answer: 3
+      }
+    ];
+  }
+  renderQuestion();
+}
+
+/* -- RENDER QUESTION -- */
 function renderQuestion() {
   if (currentQ >= questions.length) {
     showResults();
@@ -225,6 +211,7 @@ function renderQuestion() {
 function selectOption(index) {
   if (answered) return;
   answered = true;
+  userAnswers[currentQ] = index;
 
   const opts = document.querySelectorAll('.q-opt');
   const q = questions[currentQ];
@@ -242,13 +229,155 @@ function selectOption(index) {
   document.getElementById('qpScore').textContent = score + ' / ' + questions.length;
 }
 
-/* ─── RESULTS ──────────────────────────────────────────── */
+/* -- SAVE RESULT -- */
+async function saveQuizResult() {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
+  if (!user) return;
+  const qd = questions.map((q, i) => ({
+    question: q.question,
+    options: q.options,
+    answer: q.answer,
+    userAnswer: userAnswers[i] !== undefined ? userAnswers[i] : -1
+  }));
+  try {
+    await fetch(`${API}/quiz/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: user.username,
+        subject: currentTopic,
+        score,
+        totalQuestions: questions.length,
+        questionsData: JSON.stringify(qd)
+      })
+    });
+  } catch (e) {
+    console.error('Failed to save quiz result:', e);
+  }
+}
 
+/* -- HISTORY -- */
+function setupHistoryBtn() {
+  const btn = document.getElementById('historyToggle');
+  if (btn) btn.addEventListener('click', toggleHistoryPanel);
+}
+
+function toggleHistoryPanel() {
+  historyOpen = !historyOpen;
+  document.getElementById('historyPanel').classList.toggle('closed', !historyOpen);
+  if (historyOpen) loadHistory();
+}
+
+function closeHistoryPanel() {
+  historyOpen = false;
+  const hp = document.getElementById('historyPanel');
+  if (hp) hp.classList.add('closed');
+}
+
+async function loadHistory() {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
+  if (!user) return;
+  try {
+    const res = await fetch(`${API}/quiz/history?username=${encodeURIComponent(user.username)}`);
+    const data = await res.json();
+    attempts = data.history || [];
+  } catch (e) {
+    attempts = [];
+  }
+  renderHistoryList();
+}
+
+function renderHistoryList() {
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('qhEmpty');
+  list.innerHTML = '';
+  if (attempts.length === 0) {
+    list.appendChild(empty);
+    return;
+  }
+  attempts.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'qh-item';
+    const pct = a.totalQuestions > 0 ? Math.round((a.score / a.totalQuestions) * 100) : 0;
+    div.innerHTML = `
+      <div class="qh-item-top">
+        <span class="qh-item-subject">${escapeHtml(a.subject)}</span>
+        <span class="qh-item-score">${a.score}/${a.totalQuestions}</span>
+      </div>
+      <div class="qh-item-bottom">
+        <span class="qh-item-pct ${pct >= 70 ? 'good' : pct >= 50 ? 'mid' : 'low'}">${pct}%</span>
+        <span class="qh-item-date">${formatDate(a.date)}</span>
+      </div>`;
+    div.addEventListener('click', () => showAttemptDetail(a.id));
+    list.appendChild(div);
+  });
+}
+
+async function showAttemptDetail(attemptId) {
+  closeHistoryPanel();
+  try {
+    const res = await fetch(`${API}/quiz/history?id=${attemptId}`);
+    const data = await res.json();
+    if (!data.questionsData) return;
+    const qd = typeof data.questionsData === 'string' ? JSON.parse(data.questionsData) : data.questionsData;
+    renderReview(data.subject, data.score, data.totalQuestions, qd);
+  } catch (e) {
+    console.error('Failed to load attempt:', e);
+  }
+}
+
+function renderReview(subject, score, total, qd) {
+  document.getElementById('quizSetup').style.display = 'none';
+  document.getElementById('quizScreen').style.display = 'none';
+  document.getElementById('resultScreen').style.display = 'none';
+  document.getElementById('reviewScreen').style.display = 'flex';
+
+  const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+  document.getElementById('rvTitle').textContent = subject;
+  document.getElementById('rvScore').textContent = score + ' / ' + total + ' (' + pct + '%)';
+
+  const container = document.getElementById('rvQuestions');
+  container.innerHTML = '';
+  const letters = ['A', 'B', 'C', 'D'];
+
+  qd.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'rv-q';
+    const ua = q.userAnswer;
+    const ca = q.answer;
+    div.innerHTML = `<div class="rv-q-num">Question ${i + 1}</div>
+      <div class="rv-q-text">${escapeHtml(q.question)}</div>
+      <div class="rv-q-opts">` +
+      q.options.map((opt, j) => {
+        let cls = 'rv-opt';
+        if (j === ca) cls += ' correct';
+        if (ua !== -1 && j === ua && ua !== ca) cls += ' wrong';
+        if (ua !== -1 && j === ua) cls += ' selected';
+        return `<div class="${cls}"><span class="rv-opt-letter">${letters[j]}</span><span>${escapeHtml(opt)}</span></div>`;
+      }).join('') +
+      `</div>`;
+    container.appendChild(div);
+  });
+}
+
+function backToQuiz() {
+  document.getElementById('reviewScreen').style.display = 'none';
+  document.getElementById('quizSetup').style.display = 'flex';
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/* -- RESULTS -- */
 function showResults() {
   document.getElementById('quizScreen').style.display = 'none';
   document.getElementById('resultScreen').style.display = 'flex';
 
-  const pct = Math.round((score / questions.length) * 100);
+  const total = questions.length || 1;
+  const pct = Math.round((score / total) * 100);
 
   document.getElementById('rsScore').textContent = score;
   document.getElementById('rsTotal').textContent = '/ ' + questions.length;
@@ -268,16 +397,26 @@ function showResults() {
     : '<svg viewBox="0 0 24 24" fill="none" width="40" height="40"><circle cx="12" cy="12" r="9" stroke="#f59e0b" stroke-width="1.8"/><path d="M12 8V13" stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16" r="1" fill="#f59e0b"/></svg>';
 
   document.getElementById('rsTitle').style.color = color;
+
+  saveQuizResult();
 }
 
 function backToSetup() {
   document.getElementById('resultScreen').style.display = 'none';
+  document.getElementById('reviewScreen').style.display = 'none';
   document.getElementById('quizSetup').style.display = 'flex';
   document.getElementById('topicInput').value = '';
+  removeFile();
 }
 
-/* ─── BG CANVAS ─────────────────────────────────────────── */
+/* -- HELPERS -- */
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
 
+/* -- BG CANVAS -- */
 function initBg() {
   const cv = document.getElementById('bgCanvas');
   if (!cv) return;

@@ -120,6 +120,12 @@
           </svg>
         </button>
         <div class="header-left">
+          <button class="header-btn header-btn-left" id="historyToggle" title="Quiz History">
+            <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+              <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.3"/>
+              <polyline points="10,6 10,10 13,13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
           <svg viewBox="0 0 20 20" fill="none" width="18" height="18" style="color:#f59e0b;flex-shrink:0">
             <rect x="2" y="5" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/>
             <path d="M6 10L8 12L14 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -136,6 +142,22 @@
           </div>
         </div>
       </header>
+
+      <!-- HISTORY PANEL -->
+      <aside class="quiz-history-panel closed" id="historyPanel">
+        <div class="qh-header">
+          <span class="qh-title">Quiz History</span>
+          <button class="qh-close" onclick="toggleHistoryPanel()" title="Close">
+            <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+              <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="qh-list" id="historyList">
+          <div class="qh-empty" id="qhEmpty">No quiz attempts yet</div>
+        </div>
+      </aside>
 
       <!-- CONTENT -->
       <div class="quiz-scroll" id="quizScroll">
@@ -164,6 +186,22 @@
                   <button class="qs-count-btn" onclick="adjustCount(-1)">−</button>
                   <span class="qs-count-num" id="qCount">5</span>
                   <button class="qs-count-btn" onclick="adjustCount(1)">+</button>
+                </div>
+              </div>
+
+              <div class="qs-field">
+                <label class="qs-label">Upload Material (optional)</label>
+                <div class="qs-file-zone" id="fileZone">
+                  <input type="file" id="fileInput" accept=".txt,.md,.csv" onchange="handleFileSelect(this)" />
+                  <div class="qs-file-placeholder" id="filePlaceholder">
+                    <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 4V16M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17V19C4 20.1 4.9 21 6 21H18C19.1 21 20 20.1 20 19V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span>Drop a file here or <em>browse</em></span>
+                    <span class="qs-file-hint">.txt .md .csv (max 1MB)</span>
+                  </div>
+                  <div class="qs-file-info" id="fileInfo" style="display:none">
+                    <span class="qs-file-name" id="fileName"></span>
+                    <button class="qs-file-remove" onclick="removeFile()" type="button">&times;</button>
+                  </div>
                 </div>
               </div>
 
@@ -217,6 +255,22 @@
                 <button class="rs-btn ghost" onclick="backToSetup()">New Topic</button>
               </div>
             </div>
+          </div>
+
+          <!-- REVIEW SCREEN -->
+          <div class="review-screen" id="reviewScreen" style="display:none">
+            <div class="rv-header">
+              <button class="header-btn" onclick="backToQuiz()" title="Back">
+                <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
+                  <path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="rv-info">
+                <span class="rv-title" id="rvTitle">Subject</span>
+                <span class="rv-score" id="rvScore">0/0 (0%)</span>
+              </div>
+            </div>
+            <div class="rv-questions" id="rvQuestions"></div>
           </div>
 
         </div>
