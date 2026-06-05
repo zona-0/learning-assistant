@@ -11,15 +11,16 @@ import java.util.Map;
 
 public class QuizResultDAO {
 
-    public int saveQuizResult(int userId, String subject, int score, int totalQuestions, String questionsData) {
-        String sql = "INSERT INTO quiz_results (user_id, subject, score, total_questions, questions_data) VALUES (?, ?, ?, ?, ?)";
+    public int saveQuizResult(int userId, String subject, String topic, int score, int totalQuestions, String questionsData) {
+        String sql = "INSERT INTO quiz_results (user_id, subject, topic, score, total_questions, questions_data) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = Database.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, userId);
             ps.setString(2, subject);
-            ps.setInt(3, score);
-            ps.setInt(4, totalQuestions);
-            ps.setString(5, questionsData);
+            ps.setString(3, topic);
+            ps.setInt(4, score);
+            ps.setInt(5, totalQuestions);
+            ps.setString(6, questionsData);
             ps.executeUpdate();
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) return rs.getInt(1);
@@ -31,7 +32,7 @@ public class QuizResultDAO {
 
     public List<Map<String, Object>> getQuizHistory(int userId) {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT id, subject, score, total_questions, created_at FROM quiz_results WHERE user_id = ? ORDER BY created_at DESC";
+        String sql = "SELECT id, subject, topic, score, total_questions, created_at FROM quiz_results WHERE user_id = ? ORDER BY created_at DESC";
         try (Connection conn = Database.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);
@@ -40,6 +41,7 @@ public class QuizResultDAO {
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("id", rs.getInt("id"));
                 m.put("subject", rs.getString("subject"));
+                m.put("topic", rs.getString("topic"));
                 m.put("score", rs.getInt("score"));
                 m.put("totalQuestions", rs.getInt("total_questions"));
                 m.put("date", rs.getString("created_at"));
@@ -52,7 +54,7 @@ public class QuizResultDAO {
     }
 
     public Map<String, Object> getQuizAttempt(int attemptId) {
-        String sql = "SELECT id, user_id, subject, score, total_questions, questions_data, created_at FROM quiz_results WHERE id = ?";
+        String sql = "SELECT id, user_id, subject, topic, score, total_questions, questions_data, created_at FROM quiz_results WHERE id = ?";
         try (Connection conn = Database.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, attemptId);
@@ -62,6 +64,7 @@ public class QuizResultDAO {
                 m.put("id", rs.getInt("id"));
                 m.put("userId", rs.getInt("user_id"));
                 m.put("subject", rs.getString("subject"));
+                m.put("topic", rs.getString("topic"));
                 m.put("score", rs.getInt("score"));
                 m.put("totalQuestions", rs.getInt("total_questions"));
                 m.put("date", rs.getString("created_at"));

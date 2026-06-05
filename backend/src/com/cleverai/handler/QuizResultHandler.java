@@ -1,36 +1,46 @@
 package com.cleverai.handler;
 
 import com.cleverai.dao.QuizResultDAO;
+import com.cleverai.util.HandlerUtil;
 import com.cleverai.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class QuizResultHandler extends BaseHandler {
+public class QuizResultHandler implements HttpHandler {
 
     private final QuizResultDAO dao = new QuizResultDAO();
 
     @Override
-    protected void processRequest(HttpExchange exchange) throws Exception {
-        String method = exchange.getRequestMethod();
-        String path = exchange.getRequestURI().getPath();
+    public void handle(HttpExchange exchange) throws IOException {
+        if (HandlerUtil.handleCors(exchange)) return;
 
-        if ("POST".equals(method) && path.endsWith("/quiz/save")) {
-            handleSave(exchange);
-        } else if ("GET".equals(method) && path.endsWith("/quiz/history")) {
-            String query = exchange.getRequestURI().getQuery();
-            Map<String, String> params = queryToMap(query);
-            String idStr = params.get("id");
-            if (idStr != null && !idStr.isEmpty()) {
-                handleGetAttempt(exchange, Integer.parseInt(idStr));
+        try {
+            String method = exchange.getRequestMethod();
+            String path = exchange.getRequestURI().getPath();
+
+            if ("POST".equals(method) && path.endsWith("/quiz/save")) {
+                handleSave(exchange);
+            } else if ("GET".equals(method) && path.endsWith("/quiz/history")) {
+                String query = exchange.getRequestURI().getQuery();
+                Map<String, String> params = HandlerUtil.queryToMap(query);
+                String idStr = params.get("id");
+                if (idStr != null && !idStr.isEmpty()) {
+                    handleGetAttempt(exchange, Integer.parseInt(idStr));
+                } else {
+                    handleListHistory(exchange, params);
+                }
             } else {
-                handleListHistory(exchange, params);
+                JsonUtil.sendResponse(exchange, 405, Map.of("error", "Method not allowed"));
             }
-        } else {
-            JsonUtil.sendResponse(exchange, 405, Map.of("error", "Method not allowed"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            JsonUtil.sendResponse(exchange, 500, Map.of("success", false, "message", "Internal server error"));
         }
     }
 
@@ -40,6 +50,7 @@ public class QuizResultHandler extends BaseHandler {
 
         String username = params.getOrDefault("username", "").trim();
         String subject = params.getOrDefault("subject", "").trim();
+        String topic = params.getOrDefault("topic", "").trim();
         String scoreStr = params.getOrDefault("score", "0").trim();
         String totalStr = params.getOrDefault("totalQuestions", "0").trim();
         String questionsData = params.getOrDefault("questionsData", "[]").trim();
@@ -58,7 +69,7 @@ public class QuizResultHandler extends BaseHandler {
         int score = parseInt(scoreStr, 0);
         int total = parseInt(totalStr, 0);
 
-        int id = dao.saveQuizResult(userId, subject, score, total, questionsData);
+        int id = dao.saveQuizResult(userId, subject, topic, score, total, questionsData);
 
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("success", true);

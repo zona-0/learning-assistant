@@ -52,6 +52,7 @@ public class QuizHandler implements HttpHandler {
         Map<String, String> params = JsonUtil.parseBody(body);
 
         String topic = params.getOrDefault("topic", "").trim();
+        String subject = params.getOrDefault("subject", "").trim();
         String countStr = params.getOrDefault("count", "5").trim();
         String fileContent = params.getOrDefault("fileContent", "").trim();
 
@@ -70,7 +71,7 @@ public class QuizHandler implements HttpHandler {
         }
 
         try {
-            String questionsJson = callOpenAI(topic, count, fileContent);
+            String questionsJson = callOpenAI(topic, subject, count, fileContent);
             JsonUtil.sendResponse(exchange, 200, questionsJson);
         } catch (Exception e) {
             e.printStackTrace();
@@ -78,20 +79,33 @@ public class QuizHandler implements HttpHandler {
         }
     }
 
-    private String callOpenAI(String topic, int count, String fileContent) throws Exception {
+    private String callOpenAI(String topic, String subject, int count, String fileContent) throws Exception {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("Generate ").append(count)
-              .append(" multiple-choice quiz questions about \"").append(topic).append("\"");
+        boolean subjectAuto = subject == null || subject.isEmpty();
+
+        if (subjectAuto) {
+            prompt.append("Classify the topic \"").append(topic)
+                  .append("\" into exactly one of these subjects: Mathematics, Science, Language, History. ")
+                  .append("Then generate ").append(count)
+                  .append(" multiple-choice quiz questions about \"").append(topic).append("\".");
+        } else {
+            prompt.append("Generate ").append(count)
+                  .append(" multiple-choice quiz questions about \"").append(topic)
+                  .append("\" in the subject of ").append(subject).append(".");
+        }
 
         if (!fileContent.isEmpty()) {
             String material = fileContent.length() > MAX_FILE_CHARS
                 ? fileContent.substring(0, MAX_FILE_CHARS) + "\n[...content truncated]"
                 : fileContent;
-            prompt.append(" based on the following material:\n\n").append(material).append("\n\n");
+            prompt.append(" Based on the following material:\n\n").append(material).append("\n\n");
         }
 
-        prompt.append("Return ONLY a valid JSON array (no markdown, no code fences) where each object has: ")
-              .append("{\"question\": \"...\", \"options\": [\"A\", \"B\", \"C\", \"D\"], \"answer\": <0-based index of correct option>}");
+        prompt.append("Return ONLY a valid JSON object (no markdown, no code fences) with the following structure: ")
+              .append("{\"subject\": \"<one of Mathematics, Science, Language, History>\", ")
+              .append("\"questions\": [")
+              .append("{\"question\": \"...\", \"options\": [\"A\", \"B\", \"C\", \"D\"], \"answer\": <0-based index of correct option>}")
+              .append("]}");
 
         ObjectNode body = JsonUtil.createObject();
         body.put("model", MODEL);
@@ -118,12 +132,29 @@ public class QuizHandler implements HttpHandler {
         if (content.startsWith("```")) {
             content = content.replaceAll("```(?:json)?", "").trim();
         }
-        JsonNode questions = JsonUtil.parse(content);
-        if (questions == null) {
+        JsonNode root = JsonUtil.parse(content);
+        if (root == null) {
             return JsonUtil.toJson(Map.of("error", "Failed to parse quiz response"));
         }
+
         ObjectNode result = JsonUtil.createObject();
-        result.set("questions", questions);
+        result.put("topic", topic);
+
+        JsonNode questionsNode = root.get("questions");
+        if (questionsNode != null && questionsNode.isArray()) {
+            result.set("questions", questionsNode);
+        } else {
+            return JsonUtil.toJson(Map.of("error", "No questions in quiz response"));
+        }
+
+        if (root.has("subject") && !root.get("subject").asText().isEmpty()) {
+            result.put("subject", root.get("subject").asText());
+        } else if (!subject.isEmpty()) {
+            result.put("subject", subject);
+        } else {
+            result.put("subject", "");
+        }
+
         return JsonUtil.toJson(result);
     }
 }

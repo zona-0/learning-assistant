@@ -23,6 +23,7 @@ com\cleverai\handler\PasswordChangeHandler.class
 com\cleverai\handler\QuizHandler.class
 com\cleverai\handler\ProfileHandler.class
 com\cleverai\Server.class
+com\cleverai\util\HandlerUtil.class
 com\cleverai\handler\QuizResultHandler.class
 com\cleverai\handler\DashboardHandler.class
 com\cleverai\model\Ringkasan.class

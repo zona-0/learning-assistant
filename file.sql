@@ -27,6 +27,7 @@ CREATE TABLE quiz_results (
     score INT,
     total_questions INT DEFAULT 0,
     subject VARCHAR(100),
+    topic VARCHAR(200),
     questions_data JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

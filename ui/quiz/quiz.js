@@ -11,6 +11,7 @@ let totalQuestions = 5;
 let selectedFile = null;
 let userAnswers = [];
 let currentTopic = '';
+let currentSubject = '';
 let historyOpen = false;
 let attempts = [];
 
@@ -112,6 +113,7 @@ async function startQuiz() {
   }
 
   currentTopic = topic;
+  currentSubject = document.getElementById('subjectSelect').value;
   closeHistoryPanel();
 
   document.getElementById('quizSetup').style.display = 'none';
@@ -124,7 +126,8 @@ async function startQuiz() {
   answered = false;
   userAnswers = [];
 
-  document.getElementById('qpTopic').textContent = topic;
+  const label = currentSubject || 'Classifying...';
+  document.getElementById('qpTopic').textContent = label + ' · ' + topic;
   document.getElementById('qpScore').textContent = '0 / ' + totalQuestions;
   document.getElementById('qpFill').style.width = '0%';
 
@@ -132,7 +135,7 @@ async function startQuiz() {
   if (selectedFile) {
     fileContent = await readFileContent(selectedFile);
   }
-  generateQuestions(topic, totalQuestions, fileContent);
+  generateQuestions(topic, currentSubject, totalQuestions, fileContent);
 }
 
 function readFileContent(file) {
@@ -144,10 +147,11 @@ function readFileContent(file) {
   });
 }
 
-async function generateQuestions(topic, count, fileContent) {
+async function generateQuestions(topic, subject, count, fileContent) {
   userAnswers = [];
   try {
     const body = { topic, count };
+    if (subject) body.subject = subject;
     if (fileContent) body.fileContent = fileContent;
     const res = await fetch(`${API}/quiz/generate`, {
       method: 'POST',
@@ -156,6 +160,10 @@ async function generateQuestions(topic, count, fileContent) {
     });
     const data = await res.json();
     questions = data.questions || [];
+    if (data.subject) currentSubject = data.subject;
+    if (data.topic) currentTopic = data.topic;
+    const label = currentSubject || topic;
+    document.getElementById('qpTopic').textContent = label + ' · ' + currentTopic;
     if (!questions.length) throw new Error('No questions returned');
   } catch (e) {
     questions = [
@@ -245,7 +253,8 @@ async function saveQuizResult() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         username: user.username,
-        subject: currentTopic,
+        subject: currentSubject,
+        topic: currentTopic,
         score,
         totalQuestions: questions.length,
         questionsData: JSON.stringify(qd)
@@ -304,6 +313,7 @@ function renderHistoryList() {
         <span class="qh-item-subject">${escapeHtml(a.subject)}</span>
         <span class="qh-item-score">${a.score}/${a.totalQuestions}</span>
       </div>
+      ${a.topic ? `<div class="qh-item-topic">${escapeHtml(a.topic)}</div>` : ''}
       <div class="qh-item-bottom">
         <span class="qh-item-pct ${pct >= 70 ? 'good' : pct >= 50 ? 'mid' : 'low'}">${pct}%</span>
         <span class="qh-item-date">${formatDate(a.date)}</span>
@@ -320,20 +330,20 @@ async function showAttemptDetail(attemptId) {
     const data = await res.json();
     if (!data.questionsData) return;
     const qd = typeof data.questionsData === 'string' ? JSON.parse(data.questionsData) : data.questionsData;
-    renderReview(data.subject, data.score, data.totalQuestions, qd);
+    renderReview(data.subject, data.topic, data.score, data.totalQuestions, qd);
   } catch (e) {
     console.error('Failed to load attempt:', e);
   }
 }
 
-function renderReview(subject, score, total, qd) {
+function renderReview(subject, topic, score, total, qd) {
   document.getElementById('quizSetup').style.display = 'none';
   document.getElementById('quizScreen').style.display = 'none';
   document.getElementById('resultScreen').style.display = 'none';
   document.getElementById('reviewScreen').style.display = 'flex';
 
   const pct = total > 0 ? Math.round((score / total) * 100) : 0;
-  document.getElementById('rvTitle').textContent = subject;
+  document.getElementById('rvTitle').textContent = subject + (topic ? ' · ' + topic : '');
   document.getElementById('rvScore').textContent = score + ' / ' + total + ' (' + pct + '%)';
 
   const container = document.getElementById('rvQuestions');
@@ -372,7 +382,7 @@ function formatDate(dateStr) {
 }
 
 /* -- RESULTS -- */
-function showResults() {
+async function showResults() {
   document.getElementById('quizScreen').style.display = 'none';
   document.getElementById('resultScreen').style.display = 'flex';
 
@@ -398,7 +408,7 @@ function showResults() {
 
   document.getElementById('rsTitle').style.color = color;
 
-  saveQuizResult();
+  await saveQuizResult();
 }
 
 function backToSetup() {

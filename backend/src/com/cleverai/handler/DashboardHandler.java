@@ -3,29 +3,43 @@ package com.cleverai.handler;
 import com.cleverai.dao.DashboardDAO;
 import com.cleverai.dao.HistoryPomodoroDAO;
 import com.cleverai.model.*;
+import com.cleverai.util.HandlerUtil;
 import com.cleverai.util.JsonUtil;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-public class DashboardHandler extends BaseHandler {
+public class DashboardHandler implements HttpHandler {
 
     private final DashboardDAO dashboardDAO = new DashboardDAO();
     private final HistoryPomodoroDAO historyPomodoroDAO = new HistoryPomodoroDAO();
 
     @Override
-    protected void processRequest(HttpExchange exchange) throws Exception {
+    public void handle(HttpExchange exchange) throws IOException {
+        if (HandlerUtil.handleCors(exchange)) return;
+
+        try {
+            doProcess(exchange);
+        } catch (Exception e) {
+            e.printStackTrace();
+            JsonUtil.sendResponse(exchange, 500, Map.of("success", false, "message", "Internal server error"));
+        }
+    }
+
+    private void doProcess(HttpExchange exchange) throws Exception {
         if (!"GET".equals(exchange.getRequestMethod())) {
             JsonUtil.sendResponse(exchange, 405, Map.of("success", false, "message", "Method not allowed"));
             return;
         }
 
         String path = exchange.getRequestURI().getPath();
-        Map<String, String> params = queryToMap(exchange.getRequestURI().getQuery());
+        Map<String, String> params = HandlerUtil.queryToMap(exchange.getRequestURI().getQuery());
         String username = params.getOrDefault("username", "");
 
         if (username.isEmpty()) {
