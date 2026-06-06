@@ -8,6 +8,8 @@ import com.sun.net.httpserver.HttpHandler;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +72,18 @@ public class QuizResultHandler implements HttpHandler {
         int total = parseInt(totalStr, 0);
 
         int id = dao.saveQuizResult(userId, subject, topic, score, total, questionsData);
+
+        String topicLabel = topic.isEmpty() ? "quiz" : topic;
+        String aktivitasDesc = "Completed " + subject + " quiz \"" + topicLabel + "\" — " + score + "/" + total;
+        try (Connection conn = com.cleverai.util.Database.getConnection();
+                PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO aktivitas_log (user_id, tipe, deskripsi) VALUES (?, 'quiz', ?)")) {
+            ps.setInt(1, userId);
+            ps.setString(2, aktivitasDesc);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("success", true);

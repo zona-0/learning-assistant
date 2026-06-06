@@ -33,7 +33,27 @@ window.addEventListener('load', () => {
 
   setupFileDrag();
   setupHistoryBtn();
+  loadSubjects();
 });
+
+async function loadSubjects() {
+  try {
+    const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
+    if (!user) return;
+    const res = await fetch(`${API}/subjects?username=${encodeURIComponent(user.username)}`);
+    const d = await res.json();
+    if (!d.success || !d.subjects) return;
+    const sel = document.getElementById('subjectSelect');
+    d.subjects.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.name;
+      opt.textContent = s.name;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    console.log('[Quiz] Subjects API not available');
+  }
+}
 
 function toggleSidebar() {
   sidebarCollapsed = !sidebarCollapsed;

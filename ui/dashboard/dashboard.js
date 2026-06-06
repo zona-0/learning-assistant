@@ -5,15 +5,15 @@ const API = (!window.location.hostname || window.location.hostname === 'localhos
 const DEFAULT_DATA = {
   week: {
     activity: { labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], focus: [0, 0, 0, 0, 0, 0, 0], brk: [0, 0, 0, 0, 0, 0, 0] },
-    quiz: [0, 0, 0, 0, 0, 0], streak: [0, 0, 0, 0, 0, 0, 0], doughnut: [25, 25, 25, 25]
+    quiz: [0, 0, 0, 0, 0, 0], streak: [0, 0, 0, 0, 0, 0, 0], subjects: []
   },
   month: {
     activity: { labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'], focus: [0, 0, 0, 0], brk: [0, 0, 0, 0] },
-    quiz: [0, 0, 0, 0, 0, 0], streak: [0, 0, 0, 0], doughnut: [25, 25, 25, 25]
+    quiz: [0, 0, 0, 0, 0, 0], streak: [0, 0, 0, 0], subjects: []
   },
   year: {
     activity: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], focus: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], brk: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
-    quiz: [0, 0, 0, 0, 0, 0], streak: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], doughnut: [25, 25, 25, 25]
+    quiz: [0, 0, 0, 0, 0, 0], streak: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], subjects: []
   }
 };
 
@@ -42,21 +42,22 @@ window.addEventListener('load', () => {
     if (lbl) el.setAttribute('data-tip', lbl.textContent.trim());
   });
 
-  fetchAllDashboardData(user.username);
+  fetchAllDashboardData(user.username, currentPeriod);
+  fetchSubjects(user.username);
 });
 
-async function fetchAllDashboardData(username) {
+async function fetchAllDashboardData(username, period) {
   await Promise.all([
-    fetchStats(username),
+    fetchStats(username, period),
     fetchActivities(username),
-    fetchDeadlines(username),
     fetchSummary(username)
   ]);
 }
 
-async function fetchStats(username) {
+async function fetchStats(username, period) {
+  period = period || currentPeriod;
   try {
-    const res = await fetch(`${API}/dashboard/stats?username=${encodeURIComponent(username)}`);
+    const res = await fetch(`${API}/dashboard/stats?username=${encodeURIComponent(username)}&period=${period}`);
     const d = await res.json();
     if (!d.success) return;
 
@@ -65,23 +66,49 @@ async function fetchStats(username) {
     updateStatCard(2, d.quizScoreAvg || 0);
     updateStatCard(3, d.totalSesiPomodoro || 0);
 
-    if (d.weeklyFocus && d.weeklyFocus.length === 7) {
-      DATA.week.activity.focus = d.weeklyFocus;
+    const streakEl = document.getElementById('goal-streak');
+    if (streakEl) streakEl.textContent = d.currentStreak || 0;
+
+    if (d.weeklyProgress) {
+      const wp = d.weeklyProgress;
+      updateGoalBar('goal-focus-fill', 'goal-focus-pct', wp.focusHours, wp.focusGoal);
+      updateGoalBar('goal-quiz-fill', 'goal-quiz-pct', wp.quizzes, wp.quizGoal);
+      updateGoalBar('goal-note-fill', 'goal-note-pct', wp.notes, wp.notesGoal);
     }
-    if (d.weeklyBreak && d.weeklyBreak.length === 7) {
-      DATA.week.activity.brk = d.weeklyBreak;
+
+    const periodLen = period === 'month' ? 4 : period === 'year' ? 12 : 7;
+
+    if (d.weeklyFocus && d.weeklyFocus.length === periodLen) {
+      DATA[period].activity.focus = d.weeklyFocus;
     }
-    if (d.weeklyStreak && d.weeklyStreak.length === 7) {
-      DATA.week.streak = d.weeklyStreak;
+    if (d.weeklyBreak && d.weeklyBreak.length === periodLen) {
+      DATA[period].activity.brk = d.weeklyBreak;
+    }
+    if (d.weeklyStreak && d.weeklyStreak.length === periodLen) {
+      DATA[period].streak = d.weeklyStreak;
     }
     if (d.quizScores && d.quizScores.length > 0) {
-      DATA.week.quiz = d.quizScores;
+      DATA[period].quiz = d.quizScores;
+    }
+    if (d.subjects && d.subjects.length > 0) {
+      DATA.week.subjects = d.subjects;
+      DATA.month.subjects = d.subjects;
+      DATA.year.subjects = d.subjects;
     }
 
     updateCharts();
   } catch (e) {
     console.log('[Dashboard] Stats API not available, using defaults');
   }
+}
+
+function updateGoalBar(fillId, pctId, actual, goal) {
+  const fillEl = document.getElementById(fillId);
+  const pctEl = document.getElementById(pctId);
+  if (!fillEl || !pctEl) return;
+  const pct = goal > 0 ? Math.min(Math.round(actual / goal * 100), 100) : 0;
+  fillEl.style.width = pct + '%';
+  pctEl.textContent = pct + '%';
 }
 
 async function fetchActivities(username) {
@@ -92,17 +119,6 @@ async function fetchActivities(username) {
     renderActivities(d.activities);
   } catch (e) {
     console.log('[Dashboard] Activities API not available');
-  }
-}
-
-async function fetchDeadlines(username) {
-  try {
-    const res = await fetch(`${API}/dashboard/deadlines?username=${encodeURIComponent(username)}&days=7`);
-    const d = await res.json();
-    if (!d.success) return;
-    renderDeadlines(d.deadlines);
-  } catch (e) {
-    console.log('[Dashboard] Deadlines API not available');
   }
 }
 
@@ -162,34 +178,81 @@ function renderActivities(activities) {
   `).join('');
 }
 
-function renderDeadlines(deadlines) {
-  const container = document.getElementById('deadline-list');
+async function fetchSubjects(username) {
+  try {
+    const res = await fetch(`${API}/subjects?username=${encodeURIComponent(username)}`);
+    const d = await res.json();
+    if (!d.success) return;
+    renderSubjects(d.subjects);
+  } catch (e) {
+    console.log('[Dashboard] Subjects API not available');
+  }
+}
+
+function renderSubjects(subjects) {
+  const container = document.getElementById('subj-list');
   if (!container) return;
 
-  if (!deadlines || deadlines.length === 0) {
-    container.innerHTML = '<div class="empty-state">No upcoming deadlines</div>';
+  if (!subjects || subjects.length === 0) {
+    container.innerHTML = '<div class="empty-state">No subjects. Add one above.</div>';
     return;
   }
 
-  container.innerHTML = deadlines.map(d => {
-    const due = new Date(d.dueDate);
-    const now = new Date();
-    const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
-    let urgency = 'normal';
-    if (diffDays <= 1) urgency = 'urgent';
-    else if (diffDays <= 3) urgency = 'warning';
+  const escapeHtml = (text) => {
+    if (!text) return "";
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  };
 
-    return `
-      <div class="deadline-item ${urgency}">
-        <div class="deadline-header">
-          <span class="deadline-title">${d.title}</span>
-          <span class="deadline-badge ${urgency}">${diffDays <= 0 ? 'Today' : diffDays + 'd left'}</span>
-        </div>
-        <p class="deadline-desc">${d.description || 'No description'}</p>
-        <p class="deadline-due">Due: ${due.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-      </div>
-    `;
-  }).join('');
+  container.innerHTML = subjects.map(s => `
+    <div class="subj-item">
+      <span class="subj-swatch" style="background:${escapeHtml(s.color)}"></span>
+      <span class="subj-name">${escapeHtml(s.name)}</span>
+      <button class="subj-del" onclick="deleteSubject(${s.id},'${escapeHtml(s.name)}')" title="Delete ${escapeHtml(s.name)}">&times;</button>
+    </div>
+  `).join('');
+}
+
+async function addSubject() {
+  const input = document.getElementById('subj-input');
+  const colorPicker = document.getElementById('subj-color');
+  const name = input.value.trim();
+  if (!name) return;
+  const color = colorPicker.value;
+
+  try {
+    const res = await fetch(`${API}/subjects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: currentUser.username, name, color })
+    });
+    const d = await res.json();
+    if (d.success) {
+      input.value = '';
+      fetchSubjects(currentUser.username);
+      fetchStats(currentUser.username);
+    }
+  } catch (e) {
+    console.error('[Dashboard] Failed to add subject');
+  }
+}
+
+async function deleteSubject(id, name) {
+  if (!confirm(`Delete subject "${name}"?`)) return;
+
+  try {
+    const res = await fetch(`${API}/subjects`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: currentUser.username, id })
+    });
+    const d = await res.json();
+    if (d.success) {
+      fetchSubjects(currentUser.username);
+      fetchStats(currentUser.username);
+    }
+  } catch (e) {
+    console.error('[Dashboard] Failed to delete subject');
+  }
 }
 
 function renderSummary(summary) {
@@ -197,8 +260,7 @@ function renderSummary(summary) {
     { id: 'sum-focus', value: (summary.totalFokusHariIni || 0).toFixed(1) + 'h' },
     { id: 'sum-sessions', value: summary.totalSesiHariIni || 0 },
     { id: 'sum-notes', value: summary.totalNotesHariIni || 0 },
-    { id: 'sum-quiz', value: summary.totalQuizHariIni || 0 },
-    { id: 'sum-deadline', value: summary.deadlineMendekati || 0 }
+    { id: 'sum-quiz', value: summary.totalQuizHariIni || 0 }
   ];
 
   items.forEach(item => {
@@ -215,10 +277,12 @@ function toggleSidebar() {
 function setPeriod(p, btn) {
   currentPeriod = p;
   document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.period-btn').forEach(b => {
-    if (b.getAttribute('onclick') === btn.getAttribute('onclick')) b.classList.add('active');
-  });
-  updateCharts();
+  btn.classList.add('active');
+  if (currentUser) {
+    fetchStats(currentUser.username, currentPeriod);
+  } else {
+    updateCharts();
+  }
 }
 
 function animateCounters() {
@@ -270,10 +334,10 @@ function buildCharts() {
   charts.doughnut = new Chart(document.getElementById('chartDoughnut'), {
     type: 'doughnut',
     data: {
-      labels: ['Mathematics', 'Language', 'Science', 'History'], datasets: [{
-        data: d.doughnut,
-        backgroundColor: ['rgba(6,182,212,0.7)', 'rgba(244,63,94,0.65)', 'rgba(245,158,11,0.65)', 'rgba(167,139,250,0.65)'],
-        borderColor: ['#06b6d4', '#f43f5e', '#f59e0b', '#a78bfa'],
+      labels: [], datasets: [{
+        data: [],
+        backgroundColor: [],
+        borderColor: [],
         borderWidth: 1.5, hoverOffset: 6
       }]
     },
@@ -324,8 +388,8 @@ function buildCharts() {
   charts.radar = new Chart(document.getElementById('chartRadar'), {
     type: 'radar',
     data: {
-      labels: ['Mathematics', 'Language', 'Science', 'History', 'Sports', 'Arts'], datasets: [{
-        label: 'Performance', data: [0, 0, 0, 0, 0, 0],
+      labels: [], datasets: [{
+        label: 'Performance', data: [],
         borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.1)',
         pointBackgroundColor: '#06b6d4', pointRadius: 4, borderWidth: 2
       }]
@@ -350,13 +414,23 @@ function updateCharts() {
   charts.activity.data.datasets[0].data = d.activity.focus;
   charts.activity.data.datasets[1].data = d.activity.brk;
   charts.activity.update();
-  charts.doughnut.data.datasets[0].data = d.doughnut;
+
+  const subs = d.subjects || [];
+  charts.doughnut.data.labels = subs.map(s => s.name);
+  charts.doughnut.data.datasets[0].data = subs.map(s => s.count);
+  charts.doughnut.data.datasets[0].backgroundColor = subs.map(s => s.color + 'b3');
+  charts.doughnut.data.datasets[0].borderColor = subs.map(s => s.color);
   charts.doughnut.update();
+
   charts.quiz.data.datasets[0].data = d.quiz;
   charts.quiz.update();
   charts.streak.data.labels = d.activity.labels;
   charts.streak.data.datasets[0].data = d.streak;
   charts.streak.update();
+
+  charts.radar.data.labels = subs.map(s => s.name);
+  charts.radar.data.datasets[0].data = subs.map(s => s.count);
+  charts.radar.update();
 }
 
 function openMobSidebar() {

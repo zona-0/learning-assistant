@@ -563,6 +563,15 @@ canvas#bgCanvas {
 .ctrl-main.running:hover {
   background: rgba(244, 63, 94, 0.22);
 }
+.ctrl-quick {
+  border-color: rgba(52, 211, 153, 0.25);
+  color: #6ee7b7;
+}
+.ctrl-quick:hover {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
 .ctrl-main.short-mode {
   background: rgba(52, 211, 153, 0.12);
   border-color: rgba(52, 211, 153, 0.3);

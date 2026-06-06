@@ -2,6 +2,7 @@ package com.cleverai.handler;
 
 import com.cleverai.dao.DashboardDAO;
 import com.cleverai.dao.HistoryPomodoroDAO;
+import com.cleverai.dao.SubjectDAO;
 import com.cleverai.model.*;
 import com.cleverai.util.HandlerUtil;
 import com.cleverai.util.JsonUtil;
@@ -63,9 +64,6 @@ public class DashboardHandler implements HttpHandler {
         } else if (path.endsWith("/activities")) {
             int limit = parseIntParam(params, "limit", 6);
             handleActivities(exchange, dashboard, limit);
-        } else if (path.endsWith("/deadlines")) {
-            int days = parseIntParam(params, "days", 7);
-            handleDeadlines(exchange, dashboard, days);
         } else if (path.endsWith("/summary")) {
             handleSummary(exchange, dashboard);
         } else {
@@ -78,25 +76,73 @@ public class DashboardHandler implements HttpHandler {
     private void handleStats(HttpExchange exchange, Dashboard dashboard) throws Exception {
         dashboard.refreshStatistik();
 
+        String query = exchange.getRequestURI().getQuery();
+        Map<String, String> allParams = HandlerUtil.queryToMap(query);
+        String period = allParams.getOrDefault("period", "week");
+
         int userId = dashboard.getUser().getId();
 
-        List<Double> weeklyFocus = historyPomodoroDAO.getWeeklyFocusHours(userId);
-        List<Double> weeklyBreak = historyPomodoroDAO.getWeeklyBreakHours(userId);
-        List<Integer> weeklyStreak = historyPomodoroDAO.getWeeklyStreak(userId);
+        List<Double> focusData;
+        List<Double> breakData;
+        List<Integer> streakData;
+
+        switch (period) {
+            case "month":
+                focusData = historyPomodoroDAO.getMonthlyFocusHours(userId);
+                breakData = historyPomodoroDAO.getMonthlyBreakHours(userId);
+                streakData = historyPomodoroDAO.getMonthlySessions(userId);
+                break;
+            case "year":
+                focusData = historyPomodoroDAO.getYearlyFocusHours(userId);
+                breakData = historyPomodoroDAO.getYearlyBreakHours(userId);
+                streakData = historyPomodoroDAO.getYearlySessions(userId);
+                break;
+            default:
+                focusData = historyPomodoroDAO.getWeeklyFocusHours(userId);
+                breakData = historyPomodoroDAO.getWeeklyBreakHours(userId);
+                streakData = historyPomodoroDAO.getWeeklyStreak(userId);
+                break;
+        }
+
         List<Integer> quizScores = dashboardDAO.getRecentQuizScores(userId, 6);
+        Map<String, Object> todayStats = historyPomodoroDAO.getTodayStats(userId);
+        int currentStreak = (int) todayStats.getOrDefault("streak", 0);
+
+        double weekFocusActual = dashboardDAO.getCurrentWeekFocusHours(userId);
+        int weekQuizActual = dashboardDAO.getCurrentWeekQuizCount(userId);
+        int weekNoteActual = dashboardDAO.getCurrentWeekNoteCount(userId);
 
         ObjectNode json = JsonUtil.createObject();
         json.put("success", true);
         json.put("totalSesiPomodoro", dashboard.getTotalSesiPomodoro());
         json.put("totalNotes", dashboard.getTotalNotes());
-        json.put("totalDeadline", dashboard.getTotalDeadline());
-        json.put("totalFocusHours", Double.parseDouble(String.format("%.1f", dashboard.getTotalFocusHours())));
-        json.put("quizScoreAvg", Double.parseDouble(String.format("%.0f", dashboard.getQuizScoreAvg())));
+        json.put("totalFocusHours", Math.round(dashboard.getTotalFocusHours() * 10) / 10.0);
+        json.put("quizScoreAvg", (double) Math.round(dashboard.getQuizScoreAvg()));
+        json.put("currentStreak", currentStreak);
 
-        json.set("weeklyFocus", makeDoubleArray(weeklyFocus));
-        json.set("weeklyBreak", makeDoubleArray(weeklyBreak));
-        json.set("weeklyStreak", makeIntArray(weeklyStreak));
+        json.set("weeklyFocus", makeDoubleArray(focusData));
+        json.set("weeklyBreak", makeDoubleArray(breakData));
+        json.set("weeklyStreak", makeIntArray(streakData));
         json.set("quizScores", makeIntArray(quizScores));
+
+        ObjectNode weeklyProgress = json.putObject("weeklyProgress");
+        weeklyProgress.put("focusHours", Math.round(weekFocusActual * 10) / 10.0);
+        weeklyProgress.put("quizzes", weekQuizActual);
+        weeklyProgress.put("notes", weekNoteActual);
+        weeklyProgress.put("focusGoal", 10);
+        weeklyProgress.put("quizGoal", 5);
+        weeklyProgress.put("notesGoal", 7);
+
+        List<Subject> userSubjects = new SubjectDAO().listSubjects(userId);
+        Map<String, Integer> subjectDist = dashboardDAO.getSubjectDistribution(userId);
+        ArrayNode subjectsArr = JsonUtil.createArray();
+        for (Subject s : userSubjects) {
+            ObjectNode item = subjectsArr.addObject();
+            item.put("name", s.getName());
+            item.put("color", s.getColor());
+            item.put("count", subjectDist.getOrDefault(s.getName(), 0));
+        }
+        json.set("subjects", subjectsArr);
 
         System.out.println("[DASHBOARD] Stats sent for userId=" + dashboard.getUser().getId());
         JsonUtil.sendResponse(exchange, 200, json);
@@ -121,36 +167,14 @@ public class DashboardHandler implements HttpHandler {
         JsonUtil.sendResponse(exchange, 200, json);
     }
 
-    private void handleDeadlines(HttpExchange exchange, Dashboard dashboard, int days) throws Exception {
-        List<Deadline> deadlines = dashboard.dapatkanDeadlineTerdekat(days);
-
-        ObjectNode json = JsonUtil.createObject();
-        json.put("success", true);
-        ArrayNode arr = json.putArray("deadlines");
-
-        for (Deadline d : deadlines) {
-            ObjectNode item = arr.addObject();
-            item.put("id", d.getId());
-            item.put("title", d.getTitle());
-            item.put("description", d.getDescription() != null ? d.getDescription() : "");
-            item.put("dueDate", d.getDueDate());
-            item.put("isCompleted", d.isCompleted());
-        }
-
-        System.out.println("[DASHBOARD] Deadlines: " + deadlines.size() + " items (next " + days + " days)");
-        JsonUtil.sendResponse(exchange, 200, json);
-    }
-
     private void handleSummary(HttpExchange exchange, Dashboard dashboard) throws Exception {
         Ringkasan r = dashboard.generateRingkasanHarian();
 
         ObjectNode summary = JsonUtil.createObject();
-        summary.put("totalFokusHariIni", Double.parseDouble(String.format("%.1f", r.getTotalFokusHariIni())));
+        summary.put("totalFokusHariIni", Math.round(r.getTotalFokusHariIni() * 10) / 10.0);
         summary.put("totalSesiHariIni", r.getTotalSesiHariIni());
         summary.put("totalNotesHariIni", r.getTotalNotesHariIni());
         summary.put("totalQuizHariIni", r.getTotalQuizHariIni());
-        summary.put("deadlineMendekati", r.getDeadlineMendekati());
-
         ObjectNode json = JsonUtil.createObject();
         json.put("success", true);
         json.set("summary", summary);
@@ -170,7 +194,7 @@ public class DashboardHandler implements HttpHandler {
     private ArrayNode makeDoubleArray(List<Double> list) {
         ArrayNode arr = JsonUtil.createArray();
         for (Double v : list) {
-            arr.add(v != null ? Double.parseDouble(String.format("%.2f", v)) : 0.0);
+            arr.add(v != null ? Math.round(v * 100) / 100.0 : 0.0);
         }
         return arr;
     }

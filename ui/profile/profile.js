@@ -262,6 +262,20 @@ function adjustCounter(key, delta) {
 
 function savePomSettings(btn) {
   localStorage.setItem('pom_settings', JSON.stringify(pomVals));
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (user) {
+    fetch(API + '/pomodoro/save-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: user.username,
+        focusDuration: pomVals.focus,
+        shortBreak: pomVals.short,
+        longBreak: pomVals.long,
+        sessionsBeforeLong: pomVals.sessions
+      })
+    }).catch(() => {});
+  }
   const orig = btn.textContent;
   btn.textContent = 'Saved!';
   btn.style.cssText = 'background:rgba(52,211,153,.2);border-color:rgba(52,211,153,.4);color:#6ee7b7';
@@ -269,9 +283,36 @@ function savePomSettings(btn) {
 }
 
 function loadPrefs() {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (user) {
+    fetch(API + '/pomodoro/settings?username=' + encodeURIComponent(user.username))
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.focusDuration) {
+          pomVals.focus = d.focusDuration;
+          pomVals.short = d.shortBreak;
+          pomVals.long = d.longBreak;
+          pomVals.sessions = d.sessionsBeforeLong;
+          localStorage.setItem('pom_settings', JSON.stringify(pomVals));
+          applyPomVals();
+          return;
+        }
+        fallbackPrefs();
+      })
+      .catch(() => fallbackPrefs());
+  } else {
+    fallbackPrefs();
+  }
+}
+
+function fallbackPrefs() {
   const saved = JSON.parse(localStorage.getItem('pom_settings') || 'null');
   if (!saved) return;
   Object.assign(pomVals, saved);
+  applyPomVals();
+}
+
+function applyPomVals() {
   Object.keys(pomVals).forEach(k => {
     const el = document.getElementById(k+'-val');
     if (el) el.textContent = pomVals[k];

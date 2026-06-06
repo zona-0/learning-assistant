@@ -275,34 +275,34 @@
                 <p class="card-sub">Progress this week</p>
               </div>
             </div>
+            <div class="streak-row" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:6px 10px;background:rgba(52,211,153,0.1);border-radius:8px;border:1px solid rgba(52,211,153,0.2)">
+
+              <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:#34d399;font-size:14px">
+                <span id="goal-streak">0</span>-day streak
+              </span>
+            </div>
             <div class="goal-list">
               <div class="goal-item">
-                <div class="goal-top"><span class="goal-lbl">Weekly Focus Hours</span><span class="goal-pct c">0%</span>
+                <div class="goal-top"><span class="goal-lbl">Weekly Focus Hours</span><span class="goal-pct c" id="goal-focus-pct">0%</span>
                 </div>
                 <div class="goal-bar">
-                  <div class="goal-fill" style="width:0%;--gc:#06b6d4"></div>
+                  <div class="goal-fill" id="goal-focus-fill" style="width:0%;--gc:#06b6d4"></div>
                 </div>
               </div>
               <div class="goal-item">
-                <div class="goal-top"><span class="goal-lbl">Weekly Quizzes</span><span class="goal-pct a">0%</span>
+                <div class="goal-top"><span class="goal-lbl">Weekly Quizzes</span><span class="goal-pct a" id="goal-quiz-pct">0%</span>
                 </div>
                 <div class="goal-bar">
-                  <div class="goal-fill" style="width:0%;--gc:#f59e0b"></div>
+                  <div class="goal-fill" id="goal-quiz-fill" style="width:0%;--gc:#f59e0b"></div>
                 </div>
               </div>
               <div class="goal-item">
-                <div class="goal-top"><span class="goal-lbl">Weekly Notes</span><span class="goal-pct r">0%</span></div>
+                <div class="goal-top"><span class="goal-lbl">Weekly Notes</span><span class="goal-pct r" id="goal-note-pct">0%</span></div>
                 <div class="goal-bar">
-                  <div class="goal-fill" style="width:0%;--gc:#f43f5e"></div>
+                  <div class="goal-fill" id="goal-note-fill" style="width:0%;--gc:#f43f5e"></div>
                 </div>
               </div>
-              <div class="goal-item">
-                <div class="goal-top"><span class="goal-lbl">Deadlines Completed</span><span
-                    class="goal-pct v">0%</span></div>
-                <div class="goal-bar">
-                  <div class="goal-fill" style="width:0%;--gc:#a78bfa"></div>
-                </div>
-              </div>
+
             </div>
           </div>
         </div>
@@ -335,14 +335,17 @@
           <div class="card" style="--cd:.18s">
             <div class="card-hd">
               <div>
-                <h3>Upcoming Deadlines</h3>
-                <p class="card-sub">Next 7 days</p>
+                <h3>Subject Manager</h3>
+                <p class="card-sub">Manage your learning subjects</p>
               </div>
-              <span class="badge-c">This week</span>
             </div>
-            <!-- Dynamic content — diisi oleh JS dari API -->
-            <div id="deadline-list">
-              <div class="empty-state">Loading deadlines...</div>
+            <div class="subj-add-row">
+              <input type="text" class="subj-input" id="subj-input" placeholder="Subject name" maxlength="50">
+              <input type="color" class="subj-color" id="subj-color" value="#06b6d4">
+              <button class="subj-add-btn" onclick="addSubject()">Add</button>
+            </div>
+            <div class="subj-list" id="subj-list">
+              <div class="empty-state">Loading subjects...</div>
             </div>
           </div>
           <div class="card" style="--cd:.22s">
@@ -402,18 +405,7 @@
                 <p class="summary-val" id="sum-quiz">0</p>
                 <p class="summary-lbl">Quizzes</p>
               </div>
-              <div class="summary-item full-width">
-                <div class="summary-ico warn">
-                  <svg viewBox="0 0 18 18" fill="none" width="16" height="16">
-                    <path d="M9 2L16 15H2L9 2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
-                    <line x1="9" y1="7" x2="9" y2="11" stroke="currentColor" stroke-width="1.4"
-                      stroke-linecap="round" />
-                    <circle cx="9" cy="13" r="0.8" fill="currentColor" />
-                  </svg>
-                </div>
-                <p class="summary-val" id="sum-deadline">0</p>
-                <p class="summary-lbl">Upcoming Deadlines</p>
-              </div>
+
             </div>
           </div>
         </div>

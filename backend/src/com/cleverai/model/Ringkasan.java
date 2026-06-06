@@ -5,15 +5,13 @@ public class Ringkasan {
     private int totalSesiHariIni;
     private int totalNotesHariIni;
     private int totalQuizHariIni;
-    private int deadlineMendekati;
 
     public Ringkasan(double totalFokusHariIni, int totalSesiHariIni,
-            int totalNotesHariIni, int totalQuizHariIni, int deadlineMendekati) {
+            int totalNotesHariIni, int totalQuizHariIni) {
         this.totalFokusHariIni = totalFokusHariIni;
         this.totalSesiHariIni = totalSesiHariIni;
         this.totalNotesHariIni = totalNotesHariIni;
         this.totalQuizHariIni = totalQuizHariIni;
-        this.deadlineMendekati = deadlineMendekati;
     }
 
     // Getters (Enkapsulasi)
@@ -33,16 +31,11 @@ public class Ringkasan {
         return totalQuizHariIni;
     }
 
-    public int getDeadlineMendekati() {
-        return deadlineMendekati;
-    }
-
     @Override
     public String toString() {
         return "Today: " + totalFokusHariIni + "h focus, "
                 + totalSesiHariIni + " sessions, "
                 + totalNotesHariIni + " notes, "
-                + totalQuizHariIni + " quizzes, "
-                + deadlineMendekati + " upcoming deadlines";
+                + totalQuizHariIni + " quizzes";
     }
 }

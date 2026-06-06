@@ -9,6 +9,9 @@ import com.cleverai.handler.ChatHistoryHandler;
 import com.cleverai.handler.AITutorHandler;
 import com.cleverai.handler.QuizHandler;
 import com.cleverai.handler.QuizResultHandler;
+import com.cleverai.handler.PomodoroHandler;
+import com.cleverai.handler.SubjectHandler;
+import com.cleverai.handler.NoteHandler;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.io.IOException;
@@ -32,6 +35,9 @@ public class Server {
         QuizResultHandler quizResultHandler = new QuizResultHandler();
         server.createContext("/api/quiz/save", quizResultHandler);
         server.createContext("/api/quiz/history", quizResultHandler);
+        server.createContext("/api/pomodoro", new PomodoroHandler());
+        server.createContext("/api/subjects", new SubjectHandler());
+        server.createContext("/api/notes", new NoteHandler());
         server.setExecutor(null);
     }
     public void start() {

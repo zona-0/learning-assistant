@@ -12,10 +12,8 @@ public class Dashboard implements Refreshable {
     private User user;
     private int totalSesiPomodoro;
     private int totalNotes;
-    private int totalDeadline;
 
     private List<Aktivitas> aktivitasTerbaru;
-    private List<Deadline> deadlineTerdekat;
 
     private DashboardDAO dashboardDAO;
     private HistoryPomodoroDAO historyPomodoroDAO;
@@ -26,7 +24,6 @@ public class Dashboard implements Refreshable {
         this.dashboardDAO = new DashboardDAO();
         this.historyPomodoroDAO = new HistoryPomodoroDAO();
         this.aktivitasTerbaru = new ArrayList<>();
-        this.deadlineTerdekat = new ArrayList<>();
     }
 
     @Override
@@ -34,17 +31,11 @@ public class Dashboard implements Refreshable {
         int userId = user.getId();
         this.totalSesiPomodoro = historyPomodoroDAO.countByUser(userId);
         this.totalNotes = dashboardDAO.countNotesByUser(userId);
-        this.totalDeadline = dashboardDAO.countDeadlinesByUser(userId);
     }
 
     public List<Aktivitas> ambilAktivitasTerbaru() {
         this.aktivitasTerbaru = dashboardDAO.getAktivitasTerbaru(user.getId(), 6);
         return this.aktivitasTerbaru;
-    }
-
-    public List<Deadline> dapatkanDeadlineTerdekat(int hari) {
-        this.deadlineTerdekat = dashboardDAO.getDeadlineTerdekat(user.getId(), hari);
-        return this.deadlineTerdekat;
     }
 
     public Ringkasan generateRingkasanHarian() {
@@ -67,10 +58,6 @@ public class Dashboard implements Refreshable {
         return totalNotes;
     }
 
-    public int getTotalDeadline() {
-        return totalDeadline;
-    }
-
     public double getTotalFocusHours() {
         return dashboardDAO.getTotalFocusHours(user.getId());
     }
@@ -83,7 +70,5 @@ public class Dashboard implements Refreshable {
         return aktivitasTerbaru;
     }
 
-    public List<Deadline> getDeadlines() {
-        return deadlineTerdekat;
-    }
+
 }

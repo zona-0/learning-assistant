@@ -1,13 +1,14 @@
 package com.cleverai.dao;
 
 import com.cleverai.model.Aktivitas;
-import com.cleverai.model.Deadline;
 import com.cleverai.model.Ringkasan;
 import com.cleverai.model.User;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DashboardDAO extends AbstractDAO {
 
@@ -53,21 +54,6 @@ public class DashboardDAO extends AbstractDAO {
         return 0;
     }
 
-    public int countDeadlinesByUser(int userId) {
-        String sql = "SELECT COUNT(*) FROM deadlines WHERE user_id = ? AND is_completed = FALSE";
-        try (Connection conn = getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next())
-                return rs.getInt(1);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
-
-
     public double getTotalFocusHours(int userId) {
         String sql = "SELECT COALESCE(SUM(durasi_menit), 0) / 60.0 "
                 + "FROM history_pomodoro WHERE user_id = ? AND mode_pomo = 'focus'";
@@ -84,7 +70,7 @@ public class DashboardDAO extends AbstractDAO {
     }
 
     public double getQuizScoreAvg(int userId) {
-        String sql = "SELECT COALESCE(AVG(score), 0) FROM quiz_results WHERE user_id = ?";
+        String sql = "SELECT COALESCE(ROUND(AVG(score * 100.0 / NULLIF(total_questions, 0))), 0) FROM quiz_results WHERE user_id = ?";
         try (Connection conn = getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);
@@ -123,37 +109,9 @@ public class DashboardDAO extends AbstractDAO {
     }
 
 
-    public List<Deadline> getDeadlineTerdekat(int userId, int hari) {
-        List<Deadline> list = new ArrayList<>();
-        String sql = "SELECT id, user_id, title, description, due_date, is_completed "
-                + "FROM deadlines "
-                + "WHERE user_id = ? AND is_completed = FALSE "
-                + "AND due_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? DAY) "
-                + "ORDER BY due_date ASC";
-        try (Connection conn = getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId);
-            ps.setInt(2, hari);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                list.add(new Deadline(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getString("title"),
-                        rs.getString("description"),
-                        rs.getString("due_date"),
-                        rs.getBoolean("is_completed")));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return list;
-    }
-
-
     public Ringkasan getRingkasanHarian(int userId) {
         double fokus = 0;
-        int sesi = 0, notes = 0, quiz = 0, deadline = 0;
+        int sesi = 0, notes = 0, quiz = 0;
 
         try (Connection conn = getConnection();
                 PreparedStatement ps = conn.prepareStatement(
@@ -202,25 +160,33 @@ public class DashboardDAO extends AbstractDAO {
             e.printStackTrace();
         }
 
-        try (Connection conn = getConnection();
-                PreparedStatement ps = conn.prepareStatement(
-                        "SELECT COUNT(*) FROM deadlines WHERE user_id = ? AND is_completed = FALSE "
-                                + "AND due_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 3 DAY)")) {
-            ps.setInt(1, userId);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next())
-                deadline = rs.getInt(1);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return new Ringkasan(fokus, sesi, notes, quiz, deadline);
+        return new Ringkasan(fokus, sesi, notes, quiz);
     }
 
 
+    public Map<String, Integer> getSubjectDistribution(int userId) {
+        Map<String, Integer> dist = new HashMap<>();
+        String sql = "SELECT s.name, COUNT(q.id) AS cnt "
+                + "FROM subjects s "
+                + "LEFT JOIN quiz_results q ON q.user_id = s.user_id AND q.subject = s.name "
+                + "WHERE s.user_id = ? "
+                + "GROUP BY s.id, s.name ORDER BY s.id ASC";
+        try (Connection conn = getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                dist.put(rs.getString("name"), rs.getInt("cnt"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return dist;
+    }
+
     public List<Integer> getRecentQuizScores(int userId, int limit) {
         List<Integer> scores = new ArrayList<>();
-        String sql = "SELECT score FROM quiz_results WHERE user_id = ? "
+        String sql = "SELECT COALESCE(ROUND(score * 100.0 / NULLIF(total_questions, 0)), 0) FROM quiz_results WHERE user_id = ? "
                 + "ORDER BY created_at DESC LIMIT ?";
         try (Connection conn = getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -228,7 +194,7 @@ public class DashboardDAO extends AbstractDAO {
             ps.setInt(2, limit);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
-                scores.add(rs.getInt("score"));
+                scores.add(rs.getInt(1));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -236,6 +202,49 @@ public class DashboardDAO extends AbstractDAO {
         return scores;
     }
 
+
+    public double getCurrentWeekFocusHours(int userId) {
+        String sql = "SELECT COALESCE(SUM(durasi_menit), 0) / 60.0 "
+                + "FROM history_pomodoro "
+                + "WHERE user_id = ? AND mode_pomo = 'focus' AND YEARWEEK(waktu_mulai) = YEARWEEK(CURDATE())";
+        try (Connection conn = getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getDouble(1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0.0;
+    }
+
+    public int getCurrentWeekQuizCount(int userId) {
+        String sql = "SELECT COUNT(*) FROM quiz_results "
+                + "WHERE user_id = ? AND YEARWEEK(created_at) = YEARWEEK(CURDATE())";
+        try (Connection conn = getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    public int getCurrentWeekNoteCount(int userId) {
+        String sql = "SELECT COUNT(*) FROM notes "
+                + "WHERE user_id = ? AND YEARWEEK(created_at) = YEARWEEK(CURDATE())";
+        try (Connection conn = getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
 
     private String formatWaktu(Timestamp ts) {
         if (ts == null)

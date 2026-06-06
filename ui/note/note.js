@@ -1,6 +1,11 @@
+const API = (!window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8080/api'
+  : window.location.origin + '/api';
+
 let notes = [];
 let currentNote = null;
 let quill = null;
+let currentUser = null;
 
 /* =========================
    INIT
@@ -8,6 +13,7 @@ let quill = null;
 document.addEventListener("DOMContentLoaded", () => {
   const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
   if (!user) { window.location.href = '../login/index.html'; return; }
+  currentUser = user;
 
   document.getElementById('udisplay').textContent = user.fullName || user.username;
   document.getElementById('urole').textContent    = user.role === 'admin' ? 'Administrator' : 'Pelajar';
@@ -148,6 +154,15 @@ function createNewNote() {
   openModal();
 }
 
+function logNoteActivity(action, title) {
+  if (!currentUser) return;
+  fetch(API + '/notes/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: currentUser.username, title, action })
+  }).catch(() => {});
+}
+
 function saveNote() {
   if (!quill) {
     showToast("Editor failed to load", "error");
@@ -189,6 +204,7 @@ function saveNote() {
     });
 
     showToast("Note created");
+    logNoteActivity('create', title);
   }
 
   saveNotes();
@@ -223,11 +239,13 @@ function deleteNote(index) {
   const confirmDelete = confirm("Delete this note?");
   if (!confirmDelete) return;
 
+  const deletedTitle = note.title;
   notes = notes.filter((_, i) => i !== index);
 
   saveNotes();
   renderNotes();
   showToast("Note deleted");
+  logNoteActivity('delete', deletedTitle);
 }
 
 function downloadNote(index) {

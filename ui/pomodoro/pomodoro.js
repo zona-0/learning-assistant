@@ -1,3 +1,7 @@
+const API = (!window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8080/api'
+  : window.location.origin + '/api';
+
 const CIRCUMFERENCE = 2 * Math.PI * 118; 
 
 /* ── Settings config ── */
@@ -42,6 +46,8 @@ window.addEventListener('load', () => {
   }
 
   loadSettings();
+  loadStats();
+  loadLogs();
   buildDots();
   updateRing(1);
   renderDisplay();
@@ -55,14 +61,37 @@ window.addEventListener('load', () => {
    SETTINGS
    ════════════════════════════════════ */
 function loadSettings() {
-  const saved = JSON.parse(localStorage.getItem('pom_settings') || 'null');
-  if (saved) Object.assign(cfg, saved);
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (user) {
+    fetch(API + '/pomodoro/settings?username=' + encodeURIComponent(user.username))
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.focusDuration) {
+          cfg.focus = d.focusDuration;
+          cfg.short = d.shortBreak;
+          cfg.long = d.longBreak;
+          cfg.sessions = d.sessionsBeforeLong;
+          localStorage.setItem('pom_settings', JSON.stringify(cfg));
+        }
+        applyCfg();
+      })
+      .catch(() => {
+        const saved = JSON.parse(localStorage.getItem('pom_settings') || 'null');
+        if (saved) Object.assign(cfg, saved);
+        applyCfg();
+      });
+  } else {
+    const saved = JSON.parse(localStorage.getItem('pom_settings') || 'null');
+    if (saved) Object.assign(cfg, saved);
+    applyCfg();
+  }
+}
+
+function applyCfg() {
   document.getElementById('set-focus').textContent    = cfg.focus;
   document.getElementById('set-short').textContent    = cfg.short;
   document.getElementById('set-long').textContent     = cfg.long;
   document.getElementById('set-sessions').textContent = cfg.sessions;
-
-  /* Sync timer to loaded focus duration */
   timeLeft  = cfg.focus * 60;
   totalTime = timeLeft;
 }
@@ -88,6 +117,24 @@ function applySettings() {
 
   /* Persist to localStorage */
   localStorage.setItem('pom_settings', JSON.stringify(cfg));
+
+  /* Sync to backend */
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (user) {
+    fetch(API + '/pomodoro/save-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: user.username,
+        focusDuration: cfg.focus,
+        shortBreak: cfg.short,
+        longBreak: cfg.long,
+        sessionsBeforeLong: cfg.sessions,
+        autoStartBreaks: document.getElementById('tog-autobreak').checked,
+        soundNotif: document.getElementById('tog-sound').checked
+      })
+    }).catch(() => {});
+  }
 
   /* Reset the active timer to reflect the new duration */
   const durations = { focus: cfg.focus, short: cfg.short, long: cfg.long };
@@ -180,11 +227,18 @@ function skipSession() {
   onSessionEnd(true);
 }
 
+function quickComplete() {
+  if (isRunning) pauseTimer();
+  onSessionEnd(false);
+}
+
 /* ════════════════════════════════════
    SESSION END LOGIC  (Pomodoro method)
    ════════════════════════════════════ */
 function onSessionEnd(skipped) {
   playSound(mode);
+
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
 
   if (mode === 'focus') {
     /* ── Completed a focus block ── */
@@ -201,6 +255,15 @@ function onSessionEnd(skipped) {
       ? 'Focus session skipped'
       : `Focus — ${cfg.focus} min completed`);
     updateStats();
+
+    /* Log to backend */
+    if (user && !skipped) {
+      fetch(API + '/pomodoro/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user.username, mode: 'focus', durationMinutes: cfg.focus })
+      }).then(() => { loadStats(); loadLogs(); }).catch(() => {});
+    }
 
     /* After every N sessions → long break, otherwise → short break */
     const nextBreak = (completedSessions % cfg.sessions === 0 && completedSessions > 0)
@@ -229,6 +292,17 @@ function onSessionEnd(skipped) {
       ? 'Short break finished'
       : 'Long break finished');
     updateStats();
+
+    /* Log to backend */
+    if (user && !skipped) {
+      const dur = mode === 'short' ? cfg.short : cfg.long;
+      fetch(API + '/pomodoro/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user.username, mode, durationMinutes: dur })
+      }).then(() => { loadStats(); loadLogs(); }).catch(() => {});
+    }
+
     showToast('⚡ Break over! Ready to focus?', 'break-end');
 
     /* Update session badge for next focus block */
@@ -238,6 +312,49 @@ function onSessionEnd(skipped) {
 
     setMode('focus', document.querySelector('.mode-btn.focus'));
   }
+}
+
+/* ════════════════════════════════════
+   BACKEND SYNC
+   ════════════════════════════════════ */
+function loadStats() {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (!user) return;
+  fetch(API + '/pomodoro/stats?username=' + encodeURIComponent(user.username))
+    .then(r => r.json())
+    .then(d => {
+      if (!d) return;
+      completedSessions = d.sessionsDone || 0;
+      focusMinutes = d.focusMinutes || 0;
+      breaksCount = d.breaksCount || 0;
+      bestStreak = d.streak || 0;
+      updateStats();
+    })
+    .catch(() => {});
+}
+
+function loadLogs() {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (!user) return;
+  fetch(API + '/pomodoro/logs?username=' + encodeURIComponent(user.username) + '&limit=10')
+    .then(r => r.json())
+    .then(d => {
+      if (!Array.isArray(d)) return;
+      logEntries.length = 0;
+      d.forEach(e => {
+        const mode = e.mode === 'short_break' ? 'short' : e.mode === 'long_break' ? 'long' : e.mode;
+        const dur = e.durationMinutes || 0;
+        let text;
+        if (mode === 'focus') text = `Focus — ${dur} min completed`;
+        else if (mode === 'short') text = 'Short break finished';
+        else text = 'Long break finished';
+        const d2 = new Date(e.createdAt);
+        const time = d2.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        logEntries.push({ type: mode, text, time });
+      });
+      renderLog();
+    })
+    .catch(() => {});
 }
 
 /* ════════════════════════════════════

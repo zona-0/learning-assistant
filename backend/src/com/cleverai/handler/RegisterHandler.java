@@ -1,5 +1,6 @@
 package com.cleverai.handler;
 
+import com.cleverai.dao.SubjectDAO;
 import com.cleverai.dao.UserDAO;
 import com.cleverai.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
@@ -58,6 +59,11 @@ public class RegisterHandler implements HttpHandler {
             String hash = hashPassword(password);
             UserDAO dao = new UserDAO();
             dao.register(username, email, hash, fullName);
+
+            int userId = dao.findIdByUsername(username);
+            if (userId > 0) {
+                new SubjectDAO().seedDefaults(userId);
+            }
 
             System.out.println("[REGISTER] SUCCESS " + fullName + " (" + username + ") | role: pelajar");
             System.out.println("──────────────────────────────");

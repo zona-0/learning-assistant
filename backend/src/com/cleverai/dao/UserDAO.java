@@ -59,6 +59,19 @@ public class UserDAO {
         }
     }
 
+    public int findIdByUsername(String username) {
+        String sql = "SELECT id FROM users WHERE username = ?";
+        try (Connection conn = Database.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt("id");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
     public boolean register(String username, String email, String passwordHash, String fullName) throws Exception {
         String sql = "INSERT INTO users (username, email, password_hash, full_name, role, is_verified) "
                    + "VALUES (?, ?, ?, ?, 'pelajar', FALSE)";

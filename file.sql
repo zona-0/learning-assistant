@@ -21,6 +21,16 @@ CREATE TABLE notes (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE subjects (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    color VARCHAR(7) NOT NULL DEFAULT '#06b6d4',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_subject (user_id, name)
+);
+
 CREATE TABLE quiz_results (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -29,17 +39,6 @@ CREATE TABLE quiz_results (
     subject VARCHAR(100),
     topic VARCHAR(200),
     questions_data JSON,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE deadlines (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    title VARCHAR(200) NOT NULL,
-    description TEXT,
-    due_date DATETIME NOT NULL,
-    is_completed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -53,18 +52,17 @@ CREATE TABLE aktivitas_log (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Table buat nyimpen setting waktu pomodoro
 CREATE TABLE timer_settings (
-    user_id             INT PRIMARY KEY,
-    focus_duration      INT DEFAULT 25,
-    short_break         INT DEFAULT 5,
-    long_break          INT DEFAULT 15,
-    auto_start_breaks   BOOLEAN DEFAULT FALSE,
-    sound_notif         BOOLEAN DEFAULT TRUE,
+    user_id              INT PRIMARY KEY,
+    focus_duration       INT DEFAULT 25,
+    short_break          INT DEFAULT 5,
+    long_break           INT DEFAULT 15,
+    sessions_before_long INT DEFAULT 4,
+    auto_start_breaks    BOOLEAN DEFAULT FALSE,
+    sound_notif          BOOLEAN DEFAULT TRUE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- History pomodoro
 CREATE TABLE history_pomodoro (
     history_id    INT AUTO_INCREMENT PRIMARY KEY,
     user_id       INT NOT NULL,
@@ -74,7 +72,6 @@ CREATE TABLE history_pomodoro (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Table buat nyimpen sesi chat AI tutor
 CREATE TABLE chat_sessions (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     user_id     INT NOT NULL,
@@ -84,7 +81,6 @@ CREATE TABLE chat_sessions (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Table buat nyimpen chat history AI tutor
 CREATE TABLE chat_history (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     user_id     INT NOT NULL,
@@ -99,4 +95,5 @@ CREATE TABLE chat_history (
 INSERT INTO users (username, email, password_hash, full_name, role, is_verified)
 VALUES ('admin', 'admin@cleverai.com', SHA2('admin123', 256), 'Administrator CleverAI', 'admin', TRUE);
 
+SELECT id, username, full_name, role, is_verified FROM users;
 SELECT id, username, full_name, role, is_verified FROM users;
