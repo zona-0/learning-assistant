@@ -199,14 +199,30 @@ public class DashboardDAO extends AbstractDAO {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        java.util.Collections.reverse(scores);
         return scores;
     }
 
 
-    public double getCurrentWeekFocusHours(int userId) {
-        String sql = "SELECT COALESCE(SUM(durasi_menit), 0) / 60.0 "
-                + "FROM history_pomodoro "
-                + "WHERE user_id = ? AND mode_pomo = 'focus' AND YEARWEEK(waktu_mulai) = YEARWEEK(CURDATE())";
+    public double getCurrentPeriodFocusHours(int userId, String period) {
+        String sql;
+        switch (period) {
+            case "month":
+                sql = "SELECT COALESCE(SUM(durasi_menit), 0) / 60.0 "
+                        + "FROM history_pomodoro "
+                        + "WHERE user_id = ? AND mode_pomo = 'focus' AND YEAR(waktu_mulai) = YEAR(CURDATE()) AND MONTH(waktu_mulai) = MONTH(CURDATE())";
+                break;
+            case "year":
+                sql = "SELECT COALESCE(SUM(durasi_menit), 0) / 60.0 "
+                        + "FROM history_pomodoro "
+                        + "WHERE user_id = ? AND mode_pomo = 'focus' AND YEAR(waktu_mulai) = YEAR(CURDATE())";
+                break;
+            default:
+                sql = "SELECT COALESCE(SUM(durasi_menit), 0) / 60.0 "
+                        + "FROM history_pomodoro "
+                        + "WHERE user_id = ? AND mode_pomo = 'focus' AND YEARWEEK(waktu_mulai) = YEARWEEK(CURDATE())";
+                break;
+        }
         try (Connection conn = getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);
@@ -218,9 +234,22 @@ public class DashboardDAO extends AbstractDAO {
         return 0.0;
     }
 
-    public int getCurrentWeekQuizCount(int userId) {
-        String sql = "SELECT COUNT(*) FROM quiz_results "
-                + "WHERE user_id = ? AND YEARWEEK(created_at) = YEARWEEK(CURDATE())";
+    public int getCurrentPeriodQuizCount(int userId, String period) {
+        String sql;
+        switch (period) {
+            case "month":
+                sql = "SELECT COUNT(*) FROM quiz_results "
+                        + "WHERE user_id = ? AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())";
+                break;
+            case "year":
+                sql = "SELECT COUNT(*) FROM quiz_results "
+                        + "WHERE user_id = ? AND YEAR(created_at) = YEAR(CURDATE())";
+                break;
+            default:
+                sql = "SELECT COUNT(*) FROM quiz_results "
+                        + "WHERE user_id = ? AND YEARWEEK(created_at) = YEARWEEK(CURDATE())";
+                break;
+        }
         try (Connection conn = getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);
@@ -232,9 +261,22 @@ public class DashboardDAO extends AbstractDAO {
         return 0;
     }
 
-    public int getCurrentWeekNoteCount(int userId) {
-        String sql = "SELECT COUNT(*) FROM notes "
-                + "WHERE user_id = ? AND YEARWEEK(created_at) = YEARWEEK(CURDATE())";
+    public int getCurrentPeriodNoteCount(int userId, String period) {
+        String sql;
+        switch (period) {
+            case "month":
+                sql = "SELECT COUNT(*) FROM notes "
+                        + "WHERE user_id = ? AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())";
+                break;
+            case "year":
+                sql = "SELECT COUNT(*) FROM notes "
+                        + "WHERE user_id = ? AND YEAR(created_at) = YEAR(CURDATE())";
+                break;
+            default:
+                sql = "SELECT COUNT(*) FROM notes "
+                        + "WHERE user_id = ? AND YEARWEEK(created_at) = YEARWEEK(CURDATE())";
+                break;
+        }
         try (Connection conn = getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);

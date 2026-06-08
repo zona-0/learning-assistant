@@ -26,15 +26,62 @@ window.addEventListener('load', () => {
   document.getElementById('acc-role-badge').textContent = role;
 
   loadPrefs();
+  loadAppPrefs();
+  loadGoals();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabParam = urlParams.get('tab');
+  if (tabParam) {
+    const btn = document.getElementById('tab-btn-' + tabParam);
+    if (btn) setTimeout(() => switchTab(tabParam, btn), 50);
+  }
+
+  setTimeout(() => {
+    const activeBtn = document.querySelector('.goal-period-btn.active');
+    if (activeBtn) switchGoalPeriod('week', activeBtn);
+  }, 100);
   setTimeout(startTyping, 400);
+
+  /* ── Auto-save preferences on change ── */
+  document.getElementById('pref-language').addEventListener('change', saveAppPrefs);
+  document.querySelectorAll('#tab-preferences .toggle input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', saveAppPrefs);
+  });
 });
 
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+    b.tabIndex = -1;
+  });
   document.getElementById('tab-' + name).classList.add('active');
   btn.classList.add('active');
+  btn.setAttribute('aria-selected', 'true');
+  btn.tabIndex = 0;
+  btn.focus();
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const tablist = document.querySelector('[role="tablist"]');
+  if (!tablist) return;
+  tablist.addEventListener('keydown', e => {
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+    const idx = tabs.indexOf(e.target);
+    if (idx === -1) return;
+    let next;
+    switch (e.key) {
+      case 'ArrowRight': next = (idx + 1) % tabs.length; break;
+      case 'ArrowLeft':  next = (idx - 1 + tabs.length) % tabs.length; break;
+      case 'Home':       next = 0; break;
+      case 'End':        next = tabs.length - 1; break;
+      default: return;
+    }
+    e.preventDefault();
+    tabs[next].click();
+  });
+});
 
 let collapsed = false;
 function toggleSidebar() {
@@ -342,6 +389,152 @@ function eraseTyping(el, text) {
     i--;
     if (i < 0) { clearInterval(iv); setTimeout(() => startTyping(), 400); }
   }, 45);
+}
+
+/* ── App Preferences (persistent) ── */
+function loadAppPrefs() {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (!user) return;
+  fetch(API + '/preferences?username=' + encodeURIComponent(user.username))
+    .then(r => r.json())
+    .then(d => {
+      if (!d || !d.language) return;
+      document.getElementById('pref-language').value = d.language || 'en';
+      document.getElementById('pref-sound').checked       = d.soundNotifications !== false;
+      document.getElementById('pref-desktop-notif').checked = !!d.desktopNotifications;
+      document.getElementById('pref-auto-save').checked   = d.autoSaveNotes !== false;
+      document.getElementById('pref-show-progress').checked = d.showProgressDashboard !== false;
+    })
+    .catch(() => {});
+}
+
+function saveAppPrefs() {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (!user) return;
+  fetch(API + '/preferences', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: user.username,
+      language: document.getElementById('pref-language').value,
+      soundNotifications: document.getElementById('pref-sound').checked,
+      desktopNotifications: document.getElementById('pref-desktop-notif').checked,
+      autoSaveNotes: document.getElementById('pref-auto-save').checked,
+      showProgressDashboard: document.getElementById('pref-show-progress').checked,
+    })
+  }).catch(() => {});
+}
+
+/* ── Learning Goals ── */
+const goalData = { week: { focusGoal: 10, quizGoal: 5, notesGoal: 7 }, month: { focusGoal: 40, quizGoal: 20, notesGoal: 28 }, year: { focusGoal: 480, quizGoal: 240, notesGoal: 336 } };
+let currentGoalPeriod = 'week';
+
+function loadGoals() {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (!user) return;
+  fetch(API + '/goals?username=' + encodeURIComponent(user.username))
+    .then(r => r.json())
+    .then(d => {
+      if (!d || !d.success) return;
+      ['week', 'month', 'year'].forEach(p => {
+        if (d[p]) {
+          goalData[p].focusGoal = d[p].focusGoal || goalData[p].focusGoal;
+          goalData[p].quizGoal = d[p].quizGoal || goalData[p].quizGoal;
+          goalData[p].notesGoal = d[p].notesGoal || goalData[p].notesGoal;
+        }
+      });
+      applyGoalVals();
+    })
+    .catch(() => {});
+}
+
+function switchGoalPeriod(period, btn) {
+  currentGoalPeriod = period;
+  document.querySelectorAll('.goal-period-btn').forEach(b => {
+    b.style.background = 'transparent';
+    b.style.color = '#94c9d4';
+  });
+  btn.style.background = 'rgba(6,182,212,0.2)';
+  btn.style.color = '#06b6d4';
+  applyGoalVals();
+}
+
+function adjustGoal(key, delta) {
+  goalData[currentGoalPeriod][key] = Math.max(1, (goalData[currentGoalPeriod][key] || 0) + delta);
+  applyGoalVals();
+}
+
+function applyGoalVals() {
+  const g = goalData[currentGoalPeriod];
+  document.getElementById('goal-focus-val').textContent = g.focusGoal;
+  document.getElementById('goal-quiz-val').textContent = g.quizGoal;
+  document.getElementById('goal-notes-val').textContent = g.notesGoal;
+}
+
+function saveGoals(btn) {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (!user) return;
+  const g = goalData[currentGoalPeriod];
+  fetch(API + '/goals', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: user.username,
+      period: currentGoalPeriod,
+      focusGoal: g.focusGoal,
+      quizGoal: g.quizGoal,
+      notesGoal: g.notesGoal
+    })
+  }).then(r => r.json()).then(d => {
+    const orig = btn.textContent;
+    btn.textContent = d.success ? 'Saved!' : 'Failed';
+    btn.style.cssText = d.success ? 'background:rgba(52,211,153,.2);border-color:rgba(52,211,153,.4);color:#6ee7b7' : 'background:rgba(244,63,94,.2);border-color:rgba(244,63,94,.4);color:#fb7185';
+    setTimeout(() => { btn.textContent = orig; btn.style.cssText = ''; }, 2000);
+  }).catch(() => {});
+}
+
+/* ── Danger Zone ── */
+function deactivateAccount() {
+  if (!confirm('Are you sure you want to deactivate your account? You can reactivate later by contacting support.')) return;
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (!user) return;
+  fetch(API + '/account/deactivate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: user.username })
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        alert('Account deactivated. Redirecting to login.');
+        doLogout();
+      } else {
+        alert(d.message || 'Failed to deactivate.');
+      }
+    })
+    .catch(() => alert('Cannot connect to server.'));
+}
+
+function deleteAccount() {
+  if (!confirm('⚠️ This will permanently delete ALL your data including notes, quizzes, chat history, and pomodoro logs. Are you absolutely sure?')) return;
+  if (!confirm('Type "DELETE" to confirm permanent deletion.')) return;
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (!user) return;
+  fetch(API + '/account/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: user.username, confirm: 'DELETE' })
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        alert('Account permanently deleted. Goodbye.');
+        doLogout();
+      } else {
+        alert(d.message || 'Failed to delete account.');
+      }
+    })
+    .catch(() => alert('Cannot connect to server.'));
 }
 
 function doLogout() {

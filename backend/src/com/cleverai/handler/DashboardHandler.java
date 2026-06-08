@@ -108,9 +108,11 @@ public class DashboardHandler implements HttpHandler {
         Map<String, Object> todayStats = historyPomodoroDAO.getTodayStats(userId);
         int currentStreak = (int) todayStats.getOrDefault("streak", 0);
 
-        double weekFocusActual = dashboardDAO.getCurrentWeekFocusHours(userId);
-        int weekQuizActual = dashboardDAO.getCurrentWeekQuizCount(userId);
-        int weekNoteActual = dashboardDAO.getCurrentWeekNoteCount(userId);
+        double focusActual = dashboardDAO.getCurrentPeriodFocusHours(userId, period);
+        int quizActual = dashboardDAO.getCurrentPeriodQuizCount(userId, period);
+        int noteActual = dashboardDAO.getCurrentPeriodNoteCount(userId, period);
+
+        Map<String, Object> goal = getUserGoal(userId, period);
 
         ObjectNode json = JsonUtil.createObject();
         json.put("success", true);
@@ -125,13 +127,17 @@ public class DashboardHandler implements HttpHandler {
         json.set("weeklyStreak", makeIntArray(streakData));
         json.set("quizScores", makeIntArray(quizScores));
 
-        ObjectNode weeklyProgress = json.putObject("weeklyProgress");
-        weeklyProgress.put("focusHours", Math.round(weekFocusActual * 10) / 10.0);
-        weeklyProgress.put("quizzes", weekQuizActual);
-        weeklyProgress.put("notes", weekNoteActual);
-        weeklyProgress.put("focusGoal", 10);
-        weeklyProgress.put("quizGoal", 5);
-        weeklyProgress.put("notesGoal", 7);
+        ObjectNode progress = json.putObject("progress");
+        progress.put("period", period);
+        progress.put("focusHours", Math.round(focusActual * 10) / 10.0);
+        progress.put("quizzes", quizActual);
+        progress.put("notes", noteActual);
+        double focusGoal = ((Number) goal.getOrDefault("focusGoal", 10)).doubleValue();
+        int quizGoal = ((Number) goal.getOrDefault("quizGoal", 5)).intValue();
+        int notesGoal = ((Number) goal.getOrDefault("notesGoal", 7)).intValue();
+        progress.put("focusGoal", focusGoal);
+        progress.put("quizGoal", quizGoal);
+        progress.put("notesGoal", notesGoal);
 
         List<Subject> userSubjects = new SubjectDAO().listSubjects(userId);
         Map<String, Integer> subjectDist = dashboardDAO.getSubjectDistribution(userId);
@@ -189,6 +195,29 @@ public class DashboardHandler implements HttpHandler {
         } catch (NumberFormatException e) {
             return defaultVal;
         }
+    }
+
+    private Map<String, Object> getUserGoal(int userId, String period) {
+        Map<String, Object> goal = new java.util.HashMap<>();
+        String sql = "SELECT focus_goal, quiz_goal, notes_goal FROM user_goals WHERE user_id = ? AND period = ?";
+        try (java.sql.Connection conn = com.cleverai.util.Database.getConnection();
+                java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ps.setString(2, period);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                goal.put("focusGoal", rs.getDouble("focus_goal"));
+                goal.put("quizGoal", rs.getInt("quiz_goal"));
+                goal.put("notesGoal", rs.getInt("notes_goal"));
+                return goal;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        goal.put("focusGoal", period.equals("month") ? 40 : period.equals("year") ? 480 : 10);
+        goal.put("quizGoal", period.equals("month") ? 20 : period.equals("year") ? 240 : 5);
+        goal.put("notesGoal", period.equals("month") ? 28 : period.equals("year") ? 336 : 7);
+        return goal;
     }
 
     private ArrayNode makeDoubleArray(List<Double> list) {

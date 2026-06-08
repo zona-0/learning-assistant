@@ -2,6 +2,7 @@ package com.cleverai.handler;
 
 import com.cleverai.dao.UserDAO;
 import com.cleverai.model.User;
+import com.cleverai.util.HandlerUtil;
 import com.cleverai.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -17,14 +18,7 @@ public class LoginHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-
-        if ("OPTIONS".equals(exchange.getRequestMethod())) {
-            exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
-            exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
-            exchange.sendResponseHeaders(204, -1);
-            return;
-        }
+        if (HandlerUtil.handleCors(exchange)) return;
 
         if (!"POST".equals(exchange.getRequestMethod())) {
             JsonUtil.sendResponse(exchange, 405, Map.of("error", "Method not allowed"));

@@ -44,6 +44,8 @@ window.addEventListener('load', () => {
 
   fetchAllDashboardData(user.username, currentPeriod);
   fetchSubjects(user.username);
+  updateGoalLabels(currentPeriod);
+  updatePeriodLabels(currentPeriod);
 });
 
 async function fetchAllDashboardData(username, period) {
@@ -69,11 +71,13 @@ async function fetchStats(username, period) {
     const streakEl = document.getElementById('goal-streak');
     if (streakEl) streakEl.textContent = d.currentStreak || 0;
 
-    if (d.weeklyProgress) {
-      const wp = d.weeklyProgress;
-      updateGoalBar('goal-focus-fill', 'goal-focus-pct', wp.focusHours, wp.focusGoal);
-      updateGoalBar('goal-quiz-fill', 'goal-quiz-pct', wp.quizzes, wp.quizGoal);
-      updateGoalBar('goal-note-fill', 'goal-note-pct', wp.notes, wp.notesGoal);
+    if (d.progress) {
+      const p = d.progress;
+      updateGoalBar('goal-focus-fill', 'goal-focus-pct', p.focusHours, p.focusGoal);
+      updateGoalBar('goal-quiz-fill', 'goal-quiz-pct', p.quizzes, p.quizGoal);
+      updateGoalBar('goal-note-fill', 'goal-note-pct', p.notes, p.notesGoal);
+      updateGoalLabels(p.period || period);
+      updatePeriodLabels(p.period || period);
     }
 
     const periodLen = period === 'month' ? 4 : period === 'year' ? 12 : 7;
@@ -88,7 +92,9 @@ async function fetchStats(username, period) {
       DATA[period].streak = d.weeklyStreak;
     }
     if (d.quizScores && d.quizScores.length > 0) {
-      DATA[period].quiz = d.quizScores;
+      const padded = [...d.quizScores];
+      while (padded.length < 6) padded.unshift(0);
+      DATA[period].quiz = padded;
     }
     if (d.subjects && d.subjects.length > 0) {
       DATA.week.subjects = d.subjects;
@@ -171,7 +177,7 @@ function renderActivities(activities) {
     <div class="act-row">
       <div class="act-dot ${colorMap[a.tipe] || 'c'}"></div>
       <div class="act-info">
-        <p class="act-txt">${escapeHtml(a.deskripsi)}</p> <!-- Ganti disini -->
+        <p class="act-txt">${escapeHtml(a.deskripsi)}</p>
         <p class="act-time">${a.waktu}</p>
       </div>
     </div>
@@ -278,11 +284,38 @@ function setPeriod(p, btn) {
   currentPeriod = p;
   document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  updateGoalLabels(p);
+  updatePeriodLabels(p);
   if (currentUser) {
     fetchStats(currentUser.username, currentPeriod);
   } else {
     updateCharts();
   }
+}
+
+function updateGoalLabels(period) {
+  const titles = { week: 'Weekly Goal', month: 'Monthly Goal', year: 'Yearly Goal' };
+  const subtitles = { week: 'Progress this week', month: 'Progress this month', year: 'Progress this year' };
+  const labels = { week: 'Weekly', month: 'Monthly', year: 'Yearly' };
+  const titleEl = document.getElementById('goal-title');
+  const subEl = document.getElementById('goal-subtitle');
+  if (titleEl) titleEl.textContent = titles[period] || 'Weekly Goal';
+  if (subEl) subEl.textContent = subtitles[period] || 'Progress this week';
+  document.getElementById('goal-focus-lbl').textContent = (labels[period] || 'Weekly') + ' Focus Hours';
+  document.getElementById('goal-quiz-lbl').textContent = (labels[period] || 'Weekly') + ' Quizzes';
+  document.getElementById('goal-note-lbl').textContent = (labels[period] || 'Weekly') + ' Notes';
+}
+
+function updatePeriodLabels(period) {
+  const activity = { week: 'Focus hours per day', month: 'Focus hours per week', year: 'Focus hours per month' };
+  const badges = { week: 'This week', month: 'This month', year: 'This year' };
+  const streaks = { week: 'Sessions per day', month: 'Sessions per week', year: 'Sessions per month' };
+  const subEl = document.getElementById('study-activity-sub');
+  if (subEl) subEl.textContent = activity[period] || 'Focus hours per day';
+  const badgeEl = document.getElementById('quiz-badge');
+  if (badgeEl) badgeEl.textContent = badges[period] || 'This week';
+  const streakEl = document.getElementById('streak-sub');
+  if (streakEl) streakEl.textContent = streaks[period] || 'Sessions per day';
 }
 
 function animateCounters() {

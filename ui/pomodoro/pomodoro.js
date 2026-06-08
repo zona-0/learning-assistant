@@ -21,6 +21,7 @@ let breaksCount       = 0;
 let bestStreak        = 0;
 let currentStreak     = 0;
 let toastTimer        = null;
+let _stateRestored    = false;
 const logEntries      = [];
 
 /* ── Mode display config ── */
@@ -29,6 +30,97 @@ const modeConfig = {
   short: { color: '#34d399', label: 'SHORT BREAK', labelColor: '#6ee7b7' },
   long:  { color: '#a78bfa', label: 'LONG BREAK',  labelColor: '#c4b5fd' },
 };
+
+/* ── Tab persistence ── */
+const POM_STORAGE_KEY = 'pom_timer_state';
+
+function saveTimerState() {
+  try {
+    localStorage.setItem(POM_STORAGE_KEY, JSON.stringify({
+      mode, isRunning, timeLeft, totalTime,
+      completedSessions, focusMinutes, breaksCount, bestStreak, currentStreak,
+      timestamp: Date.now(),
+    }));
+  } catch (e) { /* storage full — silently degrade */ }
+}
+
+function restoreTimerState() {
+  const raw = localStorage.getItem(POM_STORAGE_KEY);
+  if (!raw) return 'none';
+  try {
+    const s = JSON.parse(raw);
+    if (!s || typeof s.mode !== 'string') return 'none';
+
+    const elapsed = Math.floor((Date.now() - (s.timestamp || Date.now())) / 1000);
+    const wasRunning = !!s.isRunning;
+
+    mode = s.mode;
+    completedSessions = s.completedSessions || 0;
+    focusMinutes = s.focusMinutes || 0;
+    breaksCount = s.breaksCount || 0;
+    bestStreak = s.bestStreak || 0;
+    currentStreak = s.currentStreak || 0;
+
+    if (wasRunning) {
+      const remaining = Math.max(0, (s.timeLeft || 0) - elapsed);
+      if (remaining > 0) {
+        timeLeft = remaining;
+        totalTime = s.totalTime || remaining;
+        isRunning = false;
+        _stateRestored = true;
+        applyStateToUI();
+        return 'running';
+      } else {
+        const durations = { focus: cfg.focus, short: cfg.short, long: cfg.long };
+        const dur = durations[mode] || cfg.focus;
+        timeLeft = dur * 60;
+        totalTime = timeLeft;
+        showToast('⏰ Session ended while you were away', 'break-end');
+      }
+    } else {
+      timeLeft = s.timeLeft || 0;
+      totalTime = s.totalTime || timeLeft || cfg.focus * 60;
+    }
+
+    isRunning = false;
+    _stateRestored = true;
+    applyStateToUI();
+    return 'restored';
+  } catch (e) {
+    return 'none';
+  }
+}
+
+function clearTimerState() {
+  localStorage.removeItem(POM_STORAGE_KEY);
+}
+
+function applyStateToUI() {
+  const mc = modeConfig[mode];
+  document.getElementById('mode-label').textContent = mc.label;
+  document.getElementById('mode-label').style.color = mc.labelColor;
+
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.querySelector(`.mode-btn.${mode}`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  const mainBtn = document.getElementById('main-btn');
+  mainBtn.classList.remove('running', 'short-mode', 'long-mode');
+  if (mode === 'short') mainBtn.classList.add('short-mode');
+  if (mode === 'long') mainBtn.classList.add('long-mode');
+
+  const inCycle = completedSessions % cfg.sessions;
+  const nextSession = inCycle + 1;
+  document.getElementById('session-badge').textContent = `Session ${nextSession} of ${cfg.sessions}`;
+
+  document.title = `${String(Math.floor(timeLeft / 60)).padStart(2, '0')}:${String(timeLeft % 60).padStart(2, '0')} — CleverAI Pomodoro`;
+
+  renderDisplay();
+  updateRing(timeLeft / totalTime);
+  buildDots();
+  updateStats();
+  showPlayIcon();
+}
 
 /* ════════════════════════════════════
    INIT
@@ -43,18 +135,44 @@ window.addEventListener('load', () => {
     document.getElementById('ua-name').textContent = fn;
     document.getElementById('ua-role').textContent =
       (user.role === 'admin' ? 'Administrator' : 'Pelajar').toUpperCase();
+    const qcBtn = document.getElementById('btn-quick-complete');
+    if (qcBtn) qcBtn.style.display = user.role === 'admin' ? '' : 'none';
   }
 
   loadSettings();
   loadStats();
   loadLogs();
-  buildDots();
-  updateRing(1);
-  renderDisplay();
+
+  /* Restore persisted timer state if available */
+  const restored = restoreTimerState();
+  if (restored === 'none') {
+    timeLeft  = cfg.focus * 60;
+    totalTime = timeLeft;
+    buildDots();
+    updateRing(1);
+    renderDisplay();
+  } else if (restored === 'running') {
+    startTimer();
+  }
+
   initBg();
 
   /* ── Wire up SET SETTINGS button ── */
   document.getElementById('btn-apply-settings').addEventListener('click', applySettings);
+
+  /* ── Cross-tab sync ── */
+  window.addEventListener('storage', e => {
+    if (e.key === POM_STORAGE_KEY && e.newValue) {
+      if (isRunning) return; // This tab is the active runner — don't override
+      restoreTimerState();
+      loadSettings();
+      loadStats();
+      loadLogs();
+    }
+  });
+
+  /* ── Save state on tab close / navigate away ── */
+  window.addEventListener('beforeunload', saveTimerState);
 });
 
 /* ════════════════════════════════════
@@ -92,8 +210,10 @@ function applyCfg() {
   document.getElementById('set-short').textContent    = cfg.short;
   document.getElementById('set-long').textContent     = cfg.long;
   document.getElementById('set-sessions').textContent = cfg.sessions;
-  timeLeft  = cfg.focus * 60;
-  totalTime = timeLeft;
+  if (!_stateRestored) {
+    timeLeft  = cfg.focus * 60;
+    totalTime = timeLeft;
+  }
 }
 
 function adjustSetting(key, delta) {
@@ -144,6 +264,7 @@ function applySettings() {
   renderDisplay();
   updateRing(1);
   buildDots();
+  saveTimerState();
 
   showToast('✓ Settings saved!', 'break-end');
 }
@@ -179,6 +300,7 @@ function setMode(m, btn) {
   updateRing(1);
   showPlayIcon();
   buildDots();
+  saveTimerState();
 }
 
 /* ════════════════════════════════════
@@ -192,11 +314,13 @@ function startTimer() {
   isRunning = true;
   document.getElementById('main-btn').classList.add('running');
   showPauseIcon();
+  saveTimerState();
 
   interval = setInterval(() => {
     timeLeft--;
     renderDisplay();
     updateRing(timeLeft / totalTime);
+    saveTimerState();
 
     if (timeLeft <= 0) {
       clearInterval(interval);
@@ -211,6 +335,7 @@ function pauseTimer() {
   clearInterval(interval);
   document.getElementById('main-btn').classList.remove('running');
   showPlayIcon();
+  saveTimerState();
 }
 
 function resetTimer() {
@@ -220,6 +345,7 @@ function resetTimer() {
   totalTime = timeLeft;
   renderDisplay();
   updateRing(1);
+  saveTimerState();
 }
 
 function skipSession() {
@@ -228,6 +354,11 @@ function skipSession() {
 }
 
 function quickComplete() {
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || localStorage.getItem('cleverai_user') || 'null');
+  if (!user || user.role !== 'admin') {
+    showToast('🔒 Only administrators can quick-complete sessions.', 'break-end');
+    return;
+  }
   if (isRunning) pauseTimer();
   onSessionEnd(false);
 }
@@ -312,6 +443,8 @@ function onSessionEnd(skipped) {
 
     setMode('focus', document.querySelector('.mode-btn.focus'));
   }
+
+  saveTimerState();
 }
 
 /* ════════════════════════════════════

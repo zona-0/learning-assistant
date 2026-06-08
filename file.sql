@@ -10,6 +10,7 @@ CREATE TABLE users (
     full_name     VARCHAR(100),
     role          ENUM('admin','pelajar') NOT NULL DEFAULT 'pelajar',
     is_verified   BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -90,6 +91,29 @@ CREATE TABLE chat_history (
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE user_preferences (
+    user_id                 INT PRIMARY KEY,
+    language                VARCHAR(10) NOT NULL DEFAULT 'en',
+    sound_notifications     BOOLEAN NOT NULL DEFAULT TRUE,
+    desktop_notifications   BOOLEAN NOT NULL DEFAULT FALSE,
+    auto_save_notes         BOOLEAN NOT NULL DEFAULT TRUE,
+    show_progress_dashboard BOOLEAN NOT NULL DEFAULT TRUE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE user_goals (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    user_id     INT NOT NULL,
+    period      ENUM('week','month','year') NOT NULL DEFAULT 'week',
+    focus_goal  DECIMAL(6,1) NOT NULL DEFAULT 10,
+    quiz_goal   INT NOT NULL DEFAULT 5,
+    notes_goal  INT NOT NULL DEFAULT 7,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_period (user_id, period)
 );
 
 INSERT INTO users (username, email, password_hash, full_name, role, is_verified)

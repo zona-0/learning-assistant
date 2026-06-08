@@ -12,6 +12,9 @@ import com.cleverai.handler.QuizResultHandler;
 import com.cleverai.handler.PomodoroHandler;
 import com.cleverai.handler.SubjectHandler;
 import com.cleverai.handler.NoteHandler;
+import com.cleverai.handler.AccountHandler;
+import com.cleverai.handler.PreferencesHandler;
+import com.cleverai.handler.GoalsHandler;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.io.IOException;
@@ -38,6 +41,9 @@ public class Server {
         server.createContext("/api/pomodoro", new PomodoroHandler());
         server.createContext("/api/subjects", new SubjectHandler());
         server.createContext("/api/notes", new NoteHandler());
+        server.createContext("/api/account", new AccountHandler());
+        server.createContext("/api/preferences", new PreferencesHandler());
+        server.createContext("/api/goals", new GoalsHandler());
         server.setExecutor(null);
     }
     public void start() {
