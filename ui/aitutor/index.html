@@ -208,6 +208,20 @@
             </div>
           </div>
 
+          <!-- RATE LIMIT BANNER -->
+          <div class="rl-banner" id="rateLimitBanner">
+            <div class="rl-content">
+              <svg viewBox="0 0 20 20" fill="none" width="16" height="16" class="rl-icon">
+                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="10" y1="6" x2="10" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="10" cy="14" r="1" fill="currentColor"/>
+              </svg>
+              <span class="rl-msg">Usage limit reached.</span>
+              <span class="rl-time" style="display:none"></span>
+              <button class="rl-close" onclick="hideRateLimitBanner()">&times;</button>
+            </div>
+          </div>
+
           <!-- INPUT BAR -->
           <div class="input-bar">
             <div class="input-wrap">
