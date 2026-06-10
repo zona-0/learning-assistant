@@ -2,6 +2,7 @@ package com.cleverai.handler;
 
 import com.cleverai.util.HandlerUtil;
 import com.cleverai.util.JsonUtil;
+import com.cleverai.util.RateLimitUtil;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -45,12 +46,24 @@ public class AITutorHandler implements HttpHandler {
         Map<String, String> params = JsonUtil.parseBody(body);
 
         String message = params.getOrDefault("message", "").trim();
+        String username = params.getOrDefault("username", "").trim();
         boolean generateTitle = "true".equals(params.getOrDefault("generateTitle", "false"));
         if (message.isEmpty()) {
             JsonUtil.sendResponse(exchange, 400, Map.of("error", "message is required"));
             return;
         }
 
+        if (!username.isEmpty()) {
+            int userId = RateLimitUtil.getUserIdByUsername(username);
+            if (userId > 0) {
+                Map<String, Object> rateCheck = RateLimitUtil.checkTutorLimit(userId);
+                if (!(boolean) rateCheck.get("allowed")) {
+                    JsonUtil.sendResponse(exchange, 429, rateCheck);
+                    return;
+                }
+            }
+        }
+        
         try {
             String reply = callOpenAI(message);
             String title = null;
