@@ -169,15 +169,27 @@ function readFileContent(file) {
 
 async function generateQuestions(topic, subject, count, fileContent) {
   userAnswers = [];
+  const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
   try {
     const body = { topic, count };
     if (subject) body.subject = subject;
     if (fileContent) body.fileContent = fileContent;
+    if (user) body.username = user.username;
     const res = await fetch(`${API}/quiz/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
+
+    // Handle rate limit
+    if (res.status === 429) {
+      const rl = await res.json();
+      document.getElementById('quizScreen').style.display = 'none';
+      document.getElementById('quizSetup').style.display = 'flex';
+      showQuizRateLimit(rl.message || 'Quiz usage limit reached. Please try again tomorrow.');
+      return;
+    }
+    
     const data = await res.json();
     questions = data.questions || [];
     if (data.subject) currentSubject = data.subject;
@@ -444,6 +456,22 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+/* -- RATE LIMIT -- */
+function showQuizRateLimit(message) {
+  hideQuizRateLimit();
+  const el = document.getElementById('quizRateLimit');
+  if (!el) return;
+  const msgEl = el.querySelector('.rl-msg');
+  if (msgEl) msgEl.textContent = message;
+  el.classList.add('show');
+  setTimeout(() => hideQuizRateLimit(), 15000);
+}
+
+function hideQuizRateLimit() {
+  const el = document.getElementById('quizRateLimit');
+  if (el) el.classList.remove('show');
 }
 
 /* -- BG CANVAS -- */
