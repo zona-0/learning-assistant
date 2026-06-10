@@ -384,6 +384,16 @@ async function simulateAIResponse(userMsg, typingId, generateTitle) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: userMsg, generateTitle: generateTitle ? 'true' : 'false' })
     });
+
+    if (res.status === 429) {
+      const rl = await res.json();
+      removeTyping(typingId);
+      showRateLimitBanner(rl.message || 'Usage limit reached. Please try again later.', rl.resetAt);
+      disableInput(false);
+      scrollToBottom();
+      return;
+    }
+    
     const data = await res.json();
     const reply = data.reply || data.error || 'Sorry, I could not process that request.';
 
@@ -418,6 +428,30 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+/* ─── RATE LIMIT BANNER ────────────────────────── */
+
+function showRateLimitBanner(message, resetAt) {
+  hideRateLimitBanner();
+  const banner = document.getElementById('rateLimitBanner');
+  if (!banner) return;
+  const msgEl = banner.querySelector('.rl-msg');
+  const timeEl = banner.querySelector('.rl-time');
+  if (msgEl) msgEl.textContent = message;
+  if (timeEl && resetAt) {
+    timeEl.textContent = 'Reset: ' + resetAt;
+    timeEl.style.display = '';
+  } else if (timeEl) {
+    timeEl.style.display = 'none';
+  }
+  banner.classList.add('show');
+  setTimeout(() => hideRateLimitBanner(), 15000);
+}
+
+function hideRateLimitBanner() {
+  const banner = document.getElementById('rateLimitBanner');
+  if (banner) banner.classList.remove('show');
 }
 
 /* ─── BG CANVAS ─────────────────────────────────── */
