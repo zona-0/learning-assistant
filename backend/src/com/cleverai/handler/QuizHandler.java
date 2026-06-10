@@ -2,6 +2,7 @@ package com.cleverai.handler;
 
 import com.cleverai.util.HandlerUtil;
 import com.cleverai.util.JsonUtil;
+import com.cleverai.util.RateLimitUtil;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -49,10 +50,22 @@ public class QuizHandler implements HttpHandler {
         String subject = params.getOrDefault("subject", "").trim();
         String countStr = params.getOrDefault("count", "5").trim();
         String fileContent = params.getOrDefault("fileContent", "").trim();
+        String username = params.getOrDefault("username", "").trim();
 
         if (topic.isEmpty()) {
             JsonUtil.sendResponse(exchange, 400, Map.of("error", "topic is required"));
             return;
+        }
+
+        if (!username.isEmpty()) {
+            int userId = RateLimitUtil.getUserIdByUsername(username);
+            if (userId > 0) {
+                Map<String, Object> rateCheck = RateLimitUtil.checkQuizLimit(userId);
+                if (!(boolean) rateCheck.get("allowed")) {
+                    JsonUtil.sendResponse(exchange, 429, rateCheck);
+                    return;
+                }
+            }
         }
 
         int count;
