@@ -212,11 +212,11 @@
               <div class="qs-field">
                 <label class="qs-label">Upload Material (optional)</label>
                 <div class="qs-file-zone" id="fileZone">
-                  <input type="file" id="fileInput" accept=".txt,.md,.csv" onchange="handleFileSelect(this)" />
+                  <input type="file" id="fileInput" accept=".txt,.md,.csv,.pdf" onchange="handleFileSelect(this)" />
                   <div class="qs-file-placeholder" id="filePlaceholder">
                     <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 4V16M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17V19C4 20.1 4.9 21 6 21H18C19.1 21 20 20.1 20 19V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                     <span>Drop a file here or <em>browse</em></span>
-                    <span class="qs-file-hint">.txt .md .csv (max 1MB)</span>
+                    <span class="qs-file-hint">.txt .md .csv .pdf (max 5MB)</span>
                   </div>
                   <div class="qs-file-info" id="fileInfo" style="display:none">
                     <span class="qs-file-name" id="fileName"></span>
@@ -241,7 +241,18 @@
             <div class="quiz-progress" id="quizProgress">
               <div class="qp-top">
                 <span class="qp-topic" id="qpTopic">Topic</span>
+                <div class="qp-right">
+                  <span class="qp-timer" id="qpTimer">
+                    <svg viewBox="0 0 16 16" fill="none" width="13" height="13" class="qp-timer-ico">
+                      <circle cx="8" cy="9" r="5.5" stroke="currentColor" stroke-width="1.3"/>
+                      <line x1="8" y1="6" x2="8" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                      <line x1="8" y1="9" x2="10" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                      <line x1="8" y1="2" x2="8" y2="3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                    </svg>
+                    <span id="timerDisplay">00:00</span>
+                  </span>
                 <span class="qp-score" id="qpScore">0 / 0</span>
+                </div>
               </div>
               <div class="qp-bar"><div class="qp-fill" id="qpFill" style="width:0%"></div></div>
             </div>
@@ -269,6 +280,15 @@
                 <span class="rs-total" id="rsTotal">/ 0</span>
               </div>
               <p class="rs-pct" id="rsPct">0%</p>
+              <div class="rs-time" id="rsTime">
+                <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+                  <circle cx="8" cy="9" r="5.5" stroke="currentColor" stroke-width="1.3"/>
+                  <line x1="8" y1="6" x2="8" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                  <line x1="8" y1="9" x2="10" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                  <line x1="8" y1="2" x2="8" y2="3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                </svg>
+                <span id="rsTimeText">0:00</span>
+              </div>
               <p class="rs-msg" id="rsMsg">Great effort!</p>
               <div class="rs-actions">
                 <button class="rs-btn primary" onclick="startQuiz()">Try Again</button>
@@ -299,6 +319,10 @@
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
   <script src="quiz.js"></script>
 </body>
 </html>
