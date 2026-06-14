@@ -280,7 +280,35 @@ body{overflow:hidden}
 /* ── QUIZ SCREEN ── */
 .quiz-screen{flex:1;display:flex;flex-direction:column;gap:20px;animation:cardIn .35s ease forwards}
 .quiz-progress{background:var(--s);border:.5px solid rgba(6,182,212,.1);border-radius:12px;padding:14px 18px;flex-shrink:0}
-.qp-top{display:flex;justify-content:space-between;margin-bottom:8px}
+.qp-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.qp-right{display:flex;align-items:center;gap:14px}
+.qp-timer{
+  display:flex;align-items:center;gap:5px;
+  font-size:13px;font-family:var(--mono);font-weight:600;
+  color:#f59e0b;
+  background:rgba(245,158,11,0.08);
+  border:.5px solid rgba(245,158,11,0.2);
+  padding:4px 10px 4px 8px;border-radius:8px;
+  letter-spacing:.3px;
+  animation:timerPulse 2s ease-in-out infinite;
+}
+.qp-timer-ico{flex-shrink:0;color:#f59e0b}
+@keyframes timerPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}
+  50%{box-shadow:0 0 8px 0 rgba(245,158,11,0.12)}
+}
+.qp-timer.danger{
+  color:#f43f5e;
+  background:rgba(244,63,94,0.1);
+  border-color:rgba(244,63,94,0.3);
+  animation:timerShake .4s ease-in-out infinite;
+}
+.qp-timer.danger .qp-timer-ico{color:#f43f5e}
+@keyframes timerShake{
+  0%,100%{transform:translateX(0)}
+  25%{transform:translateX(-2px)}
+  75%{transform:translateX(2px)}
+}
 .qp-topic{font-size:13px;font-weight:600;color:var(--txt2)}
 .qp-score{font-size:13px;font-family:var(--mono);color:var(--cl)}
 .qp-bar{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
@@ -341,7 +369,13 @@ body{overflow:hidden}
 .rs-score-wrap{margin-bottom:4px}
 .rs-score{font-size:52px;font-weight:800;color:var(--txt);font-family:var(--mono)}
 .rs-total{font-size:24px;color:var(--txt3);font-family:var(--mono)}
-.rs-pct{font-size:18px;font-weight:700;color:var(--cl);margin-bottom:8px;font-family:var(--mono)}
+.rs-pct{font-size:18px;font-weight:700;color:var(--cl);margin-bottom:4px;font-family:var(--mono)}
+.rs-time{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  font-size:13px;color:var(--txt3);font-family:var(--mono);
+  margin-bottom:12px;
+}
+.rs-time svg{color:var(--txt3);opacity:.7}
 .rs-msg{font-size:14px;color:var(--txt2);margin-bottom:28px}
 .rs-actions{display:flex;gap:12px;justify-content:center}
 .rs-btn{
