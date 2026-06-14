@@ -14,6 +14,11 @@ let currentTopic = '';
 let currentSubject = '';
 let historyOpen = false;
 let attempts = [];
+let timerInterval = null;
+let timerSeconds = 0;
+let totalElapsedSeconds = 0;
+let questionStartTime = null;
+const SECONDS_PER_QUESTION = 60;
 
 window.addEventListener('load', () => {
   const user = JSON.parse(sessionStorage.getItem('cleverai_user') || 'null');
@@ -95,15 +100,16 @@ function handleFileSelect(input) {
 }
 
 function handleFile(file) {
-  const allowed = ['.txt', '.md', '.csv'];
+  const allowed = ['.txt', '.md', '.csv', '.pdf'];
   const ext = '.' + file.name.split('.').pop().toLowerCase();
   if (!allowed.includes(ext)) {
-    alert('Only .txt, .md, and .csv files are supported.');
+    alert('Only .txt, .md, .csv, and .pdf files are supported.');
     document.getElementById('fileInput').value = '';
     return;
   }
-  if (file.size > 1048576) {
-    alert('File is too large. Maximum size is 1 MB.');
+  const maxSize = ext === '.pdf' ? 5242880 : 1048576; // 5MB for PDF, 1MB for others
+  if (file.size > maxSize) {
+    alert(ext === '.pdf' ? 'PDF is too large. Maximum size is 5 MB.' : 'File is too large. Maximum size is 1 MB.');
     document.getElementById('fileInput').value = '';
     return;
   }
@@ -145,6 +151,7 @@ async function startQuiz() {
   score = 0;
   answered = false;
   userAnswers = [];
+  totalElapsedSeconds = 0;
 
   const label = currentSubject || 'Classifying...';
   document.getElementById('qpTopic').textContent = label + ' · ' + topic;
@@ -159,12 +166,34 @@ async function startQuiz() {
 }
 
 function readFileContent(file) {
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+  if (ext === '.pdf') {
+    return readPdfContent(file);
+  }
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = e => resolve(e.target.result);
     reader.onerror = () => resolve(null);
     reader.readAsText(file);
   });
+}
+
+async function readPdfContent(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join(' ');
+      if (pageText.trim()) pages.push(pageText);
+    }
+    return pages.join('\n\n') || null;
+  } catch (e) {
+    console.error('Failed to read PDF:', e);
+    return null;
+  }
 }
 
 async function generateQuestions(topic, subject, count, fileContent) {
@@ -246,6 +275,8 @@ function renderQuestion() {
     renderQuestion();
   });
   container.appendChild(nextBtn);
+
+  startQuestionTimer();
 }
 
 function selectOption(index) {
@@ -265,6 +296,9 @@ function selectOption(index) {
 
   if (index === q.answer) score++;
 
+  stopTimer();
+  totalElapsedSeconds += (SECONDS_PER_QUESTION - timerSeconds);
+  
   document.getElementById('qNextBtn').disabled = false;
   document.getElementById('qpScore').textContent = score + ' / ' + questions.length;
 }
@@ -413,8 +447,84 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+/* -- TIMER -- */
+function startQuestionTimer() {
+  stopTimer();
+  timerSeconds = SECONDS_PER_QUESTION;
+  questionStartTime = Date.now();
+  updateTimerDisplay();
+  const timerEl = document.getElementById('qpTimer');
+  if (timerEl) { timerEl.classList.remove('danger'); }
+  timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
+    timerSeconds = Math.max(0, SECONDS_PER_QUESTION - elapsed);
+    updateTimerDisplay();
+
+    // Add danger class when ≤ 10 seconds
+    if (timerEl) {
+      timerEl.classList.toggle('danger', timerSeconds <= 10);
+    }
+
+    if (timerSeconds <= 0) {
+      onTimeUp();
+    }
+  }, 250);
+}
+
+function onTimeUp() {
+  stopTimer();
+  if (answered) return;
+  answered = true;
+  totalElapsedSeconds += SECONDS_PER_QUESTION;
+  userAnswers[currentQ] = -1;
+
+  // Show correct answer
+  const opts = document.querySelectorAll('.q-opt');
+  const q = questions[currentQ];
+  opts.forEach((el, i) => {
+    el.classList.add('disabled');
+    if (i === q.answer) el.classList.add('correct');
+  });
+
+  document.getElementById('qpScore').textContent = score + ' / ' + questions.length;
+
+  // Auto advance after 1.5s so user can see the correct answer
+  setTimeout(() => {
+    currentQ++;
+    renderQuestion();
+  }, 1500);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('timerDisplay');
+  if (el) el.textContent = formatTime(timerSeconds);
+}
+
+function formatTime(totalSec) {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function formatTimeLong(totalSec) {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  if (m === 0) return s + ' seconds';
+  if (s === 0) return m + (m === 1 ? ' minute' : ' minutes');
+  return m + (m === 1 ? ' minute ' : ' minutes ') + s + ' seconds';
+}
+
 /* -- RESULTS -- */
 async function showResults() {
+  stopTimer();
+  
   document.getElementById('quizScreen').style.display = 'none';
   document.getElementById('resultScreen').style.display = 'flex';
 
@@ -424,6 +534,7 @@ async function showResults() {
   document.getElementById('rsScore').textContent = score;
   document.getElementById('rsTotal').textContent = '/ ' + questions.length;
   document.getElementById('rsPct').textContent = pct + '%';
+  document.getElementById('rsTimeText').textContent = formatTimeLong(totalElapsedSeconds);
 
   let msg, color;
   if (pct >= 90) { msg = 'Outstanding! You really know your stuff.'; color = '#34d399'; }
